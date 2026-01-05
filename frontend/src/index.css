@@ -1,0 +1,54 @@
+/* src/index.css */
+@import './styles/theme.css'; /* <-- ADD THIS LINE AT THE TOP */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: oklch(0.98 0.005 270);
+    --foreground: oklch(0.2 0.02 250);
+    
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.2 0.02 250);
+    
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.2 0.02 250);
+    
+    --primary: oklch(0.45 0.15 250);
+    --primary-foreground: oklch(1 0 0);
+    
+    --secondary: oklch(0.94 0.01 250);
+    --secondary-foreground: oklch(0.35 0.05 250);
+    
+    --muted: oklch(0.94 0.01 250);
+    --muted-foreground: oklch(0.5 0.02 250);
+    
+    --accent: oklch(0.7 0.15 45);
+    --accent-foreground: oklch(1 0 0);
+    
+    --destructive: oklch(0.6 0.2 25);
+    --destructive-foreground: oklch(1 0 0);
+    
+    --success: oklch(0.65 0.12 180);
+    --success-foreground: oklch(1 0 0);
+    
+    --border: oklch(0.92 0.01 250);
+    --input: oklch(0.92 0.01 250);
+    --ring: oklch(0.45 0.15 250);
+    
+    --radius: 0.75rem;
+  }
+
+  /* You can add a dark theme here if you plan to implement it */
+  /* .dark { ... } */
+
+  * {
+    @apply border-border;
+  }
+  
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    overflow-x: hidden;
+  }
+}

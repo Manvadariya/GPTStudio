@@ -1,0 +1,27 @@
+{
+  "name": "rag-api-service-mongo",
+  "version": "1.0.0",
+  "description": "A RAG API service using Express and MongoDB.",
+  "main": "src/server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js"
+  },
+  "dependencies": {
+    "@azure-rest/ai-inference": "^1.0.0-beta.1",
+    "@azure/core-auth": "^1.6.0",
+    "@langchain/mongodb": "^0.0.3",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.18.3",
+    "jsonwebtoken": "^9.0.2",
+    "langchain": "^0.1.28",
+    "mammoth": "^1.7.1",
+    "mongoose": "^8.3.2",
+    "multer": "^1.4.5-lts.1",
+    "openai": "^4.40.1",
+    "pdf-parse": "^1.1.1"
+  }
+}
