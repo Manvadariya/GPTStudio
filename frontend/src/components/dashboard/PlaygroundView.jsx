@@ -1,4 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -29,6 +31,9 @@ import { toast } from "sonner";
 import { useAppContext } from "../../context/AppContext";
 import { apiService } from "../../lib/apiService";
 import { ConversationTemplates } from "./playground/ConversationTemplates";
+import { MessageLoading } from "./playground/MessageLoading";
+import { CodeBlock } from "./playground/CodeBlock";
+import { CustomTable, CustomThead, CustomTbody, CustomTr, CustomTh, CustomTd } from "./playground/MarkdownComponents";
 
 export function PlaygroundView() {
   const { playgroundMessages, setPlaygroundMessages, dataSources } =
@@ -42,7 +47,7 @@ export function PlaygroundView() {
   const [isTyping, setIsTyping] = useState(false);
   const [selectedRagDocumentIds, setSelectedRagDocumentIds] = useState([]);
   const [modelConfig, setModelConfig] = useState({
-    model: "gpt-4o",
+    model: "gpt-5-nano",
     temperature: 0.7,
     maxTokens: 2048,
     systemPrompt: "You are a helpful AI assistant.",
@@ -83,6 +88,7 @@ export function PlaygroundView() {
     }
   }, [readyDataSources, selectedRagDocumentIds]);
 
+
   const sendMessage = async () => {
     if (!currentMessage.trim() || isTyping) return;
     if (selectedRagDocumentIds.length === 0) {
@@ -97,16 +103,53 @@ export function PlaygroundView() {
     const question = currentMessage.trim();
     setCurrentMessage("");
     setIsTyping(true);
+
     try {
       const historyToInclude = newMessages.slice(0, -1).slice(-6);
       const formattedHistory = historyToInclude.map((msg) => ({
         type: msg.type,
         content: msg.content,
       }));
-      const chatData = { question, documentIds: selectedRagDocumentIds, systemPrompt: modelConfig.systemPrompt, history: formattedHistory };
-      const response = await apiService.sendMessageToRAG(chatData);
-      const assistantMessage = { id: `msg_${Date.now() + 1}`, type: "assistant", content: response.answer, timestamp: new Date().toISOString() };
-      setPlaygroundMessages((prev) => [...prev, assistantMessage]);
+      const chatData = { question, documentIds: selectedRagDocumentIds, systemPrompt: modelConfig.systemPrompt, history: formattedHistory, modelProvider: modelConfig.model };
+
+      // Use streaming for GPT-OSS model
+      if (modelConfig.model === 'gpt-oss') {
+        const assistantMessageId = `msg_${Date.now() + 1}`;
+        let accumulatedContent = '';
+        let messageAdded = false;
+
+        await apiService.streamMessageToRAG(chatData, (chunk) => {
+          if (chunk.type === 'content') {
+            accumulatedContent += chunk.content;
+
+            if (!messageAdded) {
+              // Add message on first content chunk (no more empty bubble)
+              setPlaygroundMessages((prev) => [...prev, {
+                id: assistantMessageId,
+                type: "assistant",
+                content: accumulatedContent,
+                timestamp: new Date().toISOString()
+              }]);
+              messageAdded = true;
+              setIsTyping(false); // Hide typing indicator once streaming starts
+            } else {
+              // Update the message content in real-time
+              setPlaygroundMessages((prev) =>
+                prev.map(msg =>
+                  msg.id === assistantMessageId
+                    ? { ...msg, content: accumulatedContent }
+                    : msg
+                )
+              );
+            }
+          }
+        });
+      } else {
+        // Non-streaming for Azure model
+        const response = await apiService.sendMessageToRAG(chatData);
+        const assistantMessage = { id: `msg_${Date.now() + 1}`, type: "assistant", content: response.answer, timestamp: new Date().toISOString() };
+        setPlaygroundMessages((prev) => [...prev, assistantMessage]);
+      }
     } catch (error) {
       toast.error(`Error from AI: ${error.message}`);
       const errorMessage = { id: `err_${Date.now()}`, type: "assistant", content: "Sorry, I ran into an error. Please try again.", timestamp: new Date().toISOString() };
@@ -115,6 +158,7 @@ export function PlaygroundView() {
       setIsTyping(false);
     }
   };
+
 
   const clearConversation = () => {
     setPlaygroundMessages([]);
@@ -153,59 +197,119 @@ export function PlaygroundView() {
         </div>
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-[calc(100vh-12rem)]">
-        <Card className="lg:col-span-1 h-fit">
-          <CardHeader className="pb-4"><CardTitle className="text-lg flex items-center gap-2"><Gear size={20} />Configuration</CardTitle></CardHeader>
+        <Card className="lg:col-span-1 h-fit shadow-md border-muted/20">
+          <CardHeader className="pb-4"><CardTitle className="text-lg flex items-center gap-2 font-semibold"><Gear size={20} className="text-primary" />Configuration</CardTitle></CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2"><Label htmlFor="dataSource">Knowledge Base</Label><MultiSelect options={multiSelectOptions} selected={selectedRagDocumentIds} onChange={setSelectedRagDocumentIds} className="w-full" /></div>
+            <div className="space-y-2"><Label htmlFor="dataSource" className="text-sm font-medium">Knowledge Base</Label><MultiSelect options={multiSelectOptions} selected={selectedRagDocumentIds} onChange={setSelectedRagDocumentIds} className="w-full" /></div>
             <Accordion type="single" collapsible className="w-full">
-              <AccordionItem value="item-1">
-                <AccordionTrigger>Advanced Settings</AccordionTrigger>
-                <AccordionContent className="space-y-6 pt-4">
-                  <div className="space-y-2"><Label htmlFor="systemPrompt">System Prompt</Label><Textarea id="systemPrompt" placeholder="e.g., You are a helpful pirate assistant..." value={modelConfig.systemPrompt} onChange={(e) => setModelConfig(prev => ({ ...prev, systemPrompt: e.target.value }))} className="min-h-[120px] resize-y" /></div>
-                  <div className="space-y-2"><Label htmlFor="model">Model</Label><Select value={modelConfig.model} onValueChange={(value) => setModelConfig(prev => ({ ...prev, model: value }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="gpt-4o">GPT-4o</SelectItem><SelectItem value="gpt-4o-mini">GPT-4o Mini</SelectItem></SelectContent></Select></div>
-                  <div className="space-y-2"><Label htmlFor="temperature">Temperature: {modelConfig.temperature}</Label><Slider value={[modelConfig.temperature]} onValueChange={([value]) => setModelConfig(prev => ({ ...prev, temperature: value }))} max={2} min={0} step={0.1} /></div>
+              <AccordionItem value="item-1" className="border-none">
+                <AccordionTrigger className="py-2 text-sm hover:no-underline font-medium">Advanced Settings</AccordionTrigger>
+                <AccordionContent className="space-y-6 pt-4 border-t border-muted/10">
+                  <div className="space-y-2"><Label htmlFor="systemPrompt" className="text-xs">System Prompt</Label><Textarea id="systemPrompt" placeholder="e.g., You are a helpful pirate assistant..." value={modelConfig.systemPrompt} onChange={(e) => setModelConfig(prev => ({ ...prev, systemPrompt: e.target.value }))} className="min-h-[120px] resize-y text-sm" /></div>
+                  <div className="space-y-2"><Label htmlFor="model" className="text-xs">Model</Label><Select value={modelConfig.model} onValueChange={(value) => setModelConfig(prev => ({ ...prev, model: value }))}><SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="gpt-5-nano">GPT-5 Nano (Azure)</SelectItem><SelectItem value="gpt-oss">GPT-OSS (OpenRouter)</SelectItem></SelectContent></Select></div>
+                  <div className="space-y-2"><Label htmlFor="temperature" className="text-xs">Temperature: {modelConfig.temperature}</Label><Slider value={[modelConfig.temperature]} onValueChange={([value]) => setModelConfig(prev => ({ ...prev, temperature: value }))} max={2} min={0} step={0.1} /></div>
                 </AccordionContent>
               </AccordionItem>
             </Accordion>
           </CardContent>
         </Card>
 
-        {/* --- START: THE FIX --- */}
-        {/* We restructure the chat panel for robust layout control.
-            1. The Card itself becomes the main flex container with `overflow-hidden`.
-            2. The Header, ScrollArea, and Input Box are now direct children, allowing precise control.
-            3. The ScrollArea is the ONLY element with `flex-1`, forcing it to fill the remaining space. */}
-        <Card className="lg:col-span-3 flex flex-col overflow-hidden">
-          <CardHeader className="flex-shrink-0">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <ChatCircle size={20} />Conversation
+        <Card className="lg:col-span-3 flex flex-col overflow-hidden shadow-xl border-muted/20 bg-background/50 backdrop-blur-sm">
+          <CardHeader className="flex-shrink-0 border-b border-muted/10 py-4">
+            <CardTitle className="text-lg flex items-center gap-2 font-semibold text-primary">
+              <ChatCircle size={22} weight="fill" />Conversation
             </CardTitle>
           </CardHeader>
 
-          <ScrollArea className="flex-1 p-6">
-            <div className="space-y-4">
+          <ScrollArea className="flex-1 px-6 py-4">
+            <div className="space-y-6 max-w-4xl mx-auto pb-4">
               {messages.length === 0 ? (
-                <div className="flex items-center justify-center h-full text-center">
-                  <div className="space-y-6 max-w-md"><div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center"><Robot size={24} className="text-primary" /></div>
-                    <div><p className="text-lg font-medium">Start a conversation</p><p className="text-sm text-muted-foreground mb-4">Select one or more documents and ask a question to begin.</p></div>
-                  </div>
+                <div className="flex flex-col items-center justify-center h-[50vh] text-center opacity-80">
+                  <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="space-y-6 max-w-md">
+                    <div className="mx-auto w-20 h-20 bg-primary/5 rounded-3xl flex items-center justify-center border border-primary/10 shadow-inner">
+                      <Robot size={36} className="text-primary animate-pulse" weight="duotone" />
+                    </div>
+                    <div>
+                      <p className="text-xl font-bold text-foreground/90">AI Knowledge Assistant</p>
+                      <p className="text-sm text-muted-foreground mt-2 leading-relaxed">Select a Knowledge Base from the sidebar and start chatting to get grounded insights from your data.</p>
+                    </div>
+                  </motion.div>
                 </div>
               ) : (
-                <AnimatePresence>
+                <AnimatePresence mode="popLayout">
                   {messages.map((message) => (
-                    <motion.div key={message.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className={`flex gap-3 ${message.type === "user" ? "justify-end" : "justify-start"}`}>
-                      {message.type === "assistant" && (<div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0 mt-1"><Robot size={16} className="text-primary"/></div>)}
-                      <div className="max-w-[70%]"><div className={`rounded-2xl px-4 py-3 ${message.type === "user" ? "bg-primary text-primary-foreground ml-auto" : "bg-muted"}`}><p className="whitespace-pre-wrap">{message.content}</p></div></div>
-                      {message.type === "user" && (<div className="w-8 h-8 bg-secondary rounded-full flex items-center justify-center flex-shrink-0 mt-1"><User size={16} className="text-secondary-foreground"/></div>)}
+                    <motion.div
+                      key={message.id}
+                      initial={{ opacity: 0, y: 10, scale: 0.98 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      transition={{ duration: 0.25, ease: "easeOut" }}
+                      className={`flex gap-4 ${message.type === "user" ? "justify-end" : "justify-start"}`}
+                    >
+                      {message.type === "assistant" && (
+                        <div className="w-9 h-9 bg-primary flex items-center justify-center rounded-xl flex-shrink-0 mt-1 shadow-lg shadow-primary/20 ring-2 ring-background">
+                          <Robot size={18} className="text-primary-foreground" weight="bold" />
+                        </div>
+                      )}
+
+                      <div className={`flex flex-col gap-1.5 ${message.type === "user" ? "items-end" : "items-start"} max-w-[85%]`}>
+                        <div className={`rounded-2xl px-5 py-3.5 shadow-sm border ${message.type === "user"
+                          ? "bg-primary text-white border-primary/20 rounded-tr-none shadow-primary/10"
+                          : "bg-slate-50 text-slate-900 border-slate-200 rounded-tl-none shadow-slate-100"
+                          }`}>
+                          {message.type === "assistant" ? (
+                            <div className="prose prose-sm max-w-none text-slate-900 leading-relaxed
+                              prose-headings:text-slate-900 prose-headings:font-bold prose-headings:mb-3 prose-headings:mt-6 first:prose-headings:mt-0
+                              prose-p:mb-4 prose-p:last:mb-0 prose-p:leading-relaxed
+                              prose-a:text-primary prose-a:underline hover:prose-a:text-primary/80
+                              prose-strong:text-slate-900 prose-strong:font-bold
+                              prose-code:text-primary prose-code:bg-primary/5 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none
+                              prose-pre:bg-transparent prose-pre:p-0 prose-pre:m-0 prose-pre:border-none prose-pre:shadow-none prose-pre:text-inherit
+                              prose-ul:my-4 prose-ul:list-disc prose-ul:pl-5
+                              prose-ol:my-4 prose-ol:list-decimal prose-ol:pl-5
+                              prose-li:my-1.5 prose-li:pl-1
+                            ">
+                              <ReactMarkdown
+                                remarkPlugins={[remarkGfm]}
+                                components={{
+                                  code: CodeBlock,
+                                  table: CustomTable,
+                                  thead: CustomThead,
+                                  tbody: CustomTbody,
+                                  tr: CustomTr,
+                                  th: CustomTh,
+                                  td: CustomTd
+                                }}
+                              >
+                                {message.content.replace(/<br>/g, '\n')}
+                              </ReactMarkdown>
+                            </div>
+                          ) : (
+                            <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
+                          )}
+                        </div>
+                        <span className="text-[10px] text-muted-foreground/60 px-1 font-medium mt-0.5">
+                          {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+
+                      {message.type === "user" && (
+                        <div className="w-9 h-9 bg-slate-800 flex items-center justify-center rounded-xl flex-shrink-0 mt-1 shadow-lg shadow-slate-900/10 ring-2 ring-background">
+                          <User size={18} className="text-white" weight="bold" />
+                        </div>
+                      )}
                     </motion.div>
                   ))}
                 </AnimatePresence>
               )}
               <AnimatePresence>
                 {isTyping && (
-                  <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="flex gap-3">
-                    <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0"><Robot size={16} className="text-primary"/></div>
-                    <div className="bg-muted rounded-2xl px-4 py-3"><div className="flex space-x-1"><div className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce [animation-delay:-0.3s]" /><div className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce [animation-delay:-0.15s]" /><div className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" /></div></div>
+                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="flex gap-4">
+                    <div className="w-9 h-9 bg-primary/10 flex items-center justify-center rounded-xl flex-shrink-0 mt-1 border border-primary/20">
+                      <Robot size={18} className="text-primary" weight="bold" />
+                    </div>
+                    <div className="bg-slate-50 rounded-2xl px-5 py-3.5 border border-slate-200 shadow-sm rounded-tl-none">
+                      <MessageLoading />
+                    </div>
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -213,18 +317,36 @@ export function PlaygroundView() {
             </div>
           </ScrollArea>
 
-          <div className="border-t p-4 flex-shrink-0">
-            <div className="flex gap-3">
-              <div className="flex-1">
-                <Textarea ref={inputRef} placeholder="Ask a question about your selected document(s)..." value={currentMessage} onChange={(e) => setCurrentMessage(e.target.value)} onKeyDown={handleKeyPress} className="min-h-[60px] max-h-32 resize-none" disabled={isTyping} />
+          <div className="border-t border-muted/10 p-4 bg-background/80 backdrop-blur-md">
+            <div className="flex gap-3 max-w-4xl mx-auto relative group">
+              <div className="flex-1 relative">
+                <Textarea
+                  ref={inputRef}
+                  placeholder="Ask a question about your selected document(s)..."
+                  value={currentMessage}
+                  onChange={(e) => setCurrentMessage(e.target.value)}
+                  onKeyDown={handleKeyPress}
+                  className="min-h-[60px] max-h-32 resize-none pr-12 py-3 rounded-2xl border-muted/20 bg-background shadow-sm focus-visible:ring-primary/20 transition-all"
+                  disabled={isTyping}
+                />
+                <div className="absolute right-3 bottom-3">
+                  <Button
+                    onClick={sendMessage}
+                    disabled={!currentMessage.trim() || isTyping}
+                    size="icon"
+                    className={`rounded-xl transition-all h-9 w-9 ${isTyping ? "bg-secondary" : "bg-primary shadow-lg shadow-primary/20"}`}
+                    variant={isTyping ? "secondary" : "default"}
+                  >
+                    {isTyping ? <Stop size={18} /> : <PaperPlaneTilt size={18} weight="bold" />}
+                  </Button>
+                </div>
               </div>
-              <Button onClick={sendMessage} disabled={!currentMessage.trim() || isTyping} size="lg" className="self-end" variant={isTyping ? "secondary" : "default"}>
-                {isTyping ? <Stop size={18} /> : <PaperPlaneTilt size={18} />}
-              </Button>
             </div>
+            <p className="text-[10px] text-center text-muted-foreground/50 mt-2">
+              AI generated content may be inaccurate. Verify important information.
+            </p>
           </div>
         </Card>
-        {/* --- END: THE FIX --- */}
       </div>
     </div>
   );

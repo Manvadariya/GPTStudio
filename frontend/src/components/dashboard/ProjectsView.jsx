@@ -19,7 +19,7 @@ import { useNavigate } from 'react-router-dom';
 const DEFAULT_PROJECT_FORM = {
   name: '',
   description: '',
-  model: 'gpt-4o',
+  model: 'gpt-5-nano',
   documents: [],
   temperature: 0.7,
   systemPrompt: 'You are a helpful AI assistant that answers questions based on the provided context.'
@@ -159,7 +159,7 @@ export function ProjectsView({ triggerNewProject, onNewProjectTriggered }) {
         <div><h2 className="text-3xl font-bold tracking-tight">Projects</h2><p className="text-muted-foreground">Manage your AI models and deployments</p></div>
         <Button className="gap-2" onClick={handleOpenCreateDialog}><Plus size={16} />New Project</Button>
       </div>
-      
+
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
@@ -176,7 +176,7 @@ export function ProjectsView({ triggerNewProject, onNewProjectTriggered }) {
                 <Label htmlFor="base-model">Base Model</Label>
                 <Select value={projectForm.model} onValueChange={(value) => setProjectForm(prev => ({ ...prev, model: value }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent><SelectItem value="gpt-4o">GPT-4O (Recommended)</SelectItem><SelectItem value="gpt-4o-mini">GPT-4O Mini</SelectItem></SelectContent>
+                  <SelectContent><SelectItem value="gpt-5-nano">GPT-5 Nano (Azure)</SelectItem><SelectItem value="gpt-oss">GPT-OSS (OpenRouter)</SelectItem></SelectContent>
                 </Select>
               </div>
             </div>
@@ -191,7 +191,7 @@ export function ProjectsView({ triggerNewProject, onNewProjectTriggered }) {
             </div>
             <div className="space-y-2">
               <Label>System Prompt</Label>
-              <Textarea placeholder="Define the AI's personality and instructions..." value={projectForm.systemPrompt} onChange={(e) => setProjectForm(prev => ({...prev, systemPrompt: e.target.value}))} className="min-h-[100px]"/>
+              <Textarea placeholder="Define the AI's personality and instructions..." value={projectForm.systemPrompt} onChange={(e) => setProjectForm(prev => ({ ...prev, systemPrompt: e.target.value }))} className="min-h-[100px]" />
             </div>
             <div className="space-y-2">
               <Label>Temperature: {projectForm.temperature}</Label>
@@ -220,7 +220,7 @@ export function ProjectsView({ triggerNewProject, onNewProjectTriggered }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card><CardContent className="p-6"><div className="flex items-center justify-between"><div><p className="text-sm font-medium text-muted-foreground">Total Projects</p><p className="text-2xl font-bold">{totalProjects}</p></div><Brain size={24} className="text-primary" weight="duotone" /></div></CardContent></Card>
         <Card><CardContent className="p-6"><div className="flex items-center justify-between"><div><p className="text-sm font-medium text-muted-foreground">Deployed</p><p className="text-2xl font-bold text-green-600">{deployedProjects}</p></div><Rocket size={24} className="text-green-600" weight="duotone" /></div></CardContent></Card>
@@ -274,17 +274,17 @@ export function ProjectsView({ triggerNewProject, onNewProjectTriggered }) {
                       <Button variant="outline" size="sm" className="flex-1 gap-1" onClick={() => handleOpenEditDialog(project)}>
                         <PencilSimple size={14} />Edit
                       </Button>
-                      
+
                       {project.status === 'deployed' ? (
                         <Button variant="secondary" size="sm" className="flex-1 gap-1" onClick={() => handleViewAPI(project)}>
-                           <LinkIcon size={14} />View API Keys
+                          <LinkIcon size={14} />View API Keys
                         </Button>
                       ) : (
                         <Button size="sm" className="flex-1 gap-1 bg-green-600 hover:bg-green-700" onClick={() => handleOpenDeployDialog(project)}>
                           <Rocket size={14} />Deploy
                         </Button>
                       )}
-                      
+
                       <Button variant="ghost" size="sm" onClick={() => handleDeleteProject(project.id)} className="text-destructive hover:text-destructive px-2">
                         <Trash size={14} />
                       </Button>

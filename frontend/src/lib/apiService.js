@@ -1,7 +1,6 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 async function request(endpoint, options = {}) {
-  // ... (request function remains the same as before)
   const url = `${API_BASE_URL}${endpoint}`;
   const token = localStorage.getItem('authToken');
   const headers = { 'Content-Type': 'application/json', ...options.headers };
@@ -17,6 +16,55 @@ async function request(endpoint, options = {}) {
   } catch (error) {
     console.error(`API Error on ${endpoint}:`, error);
     throw error;
+  }
+}
+
+// Streaming chat request using Server-Sent Events style response
+async function streamingRequest(endpoint, body, onChunk) {
+  const url = `${API_BASE_URL}${endpoint}`;
+  const token = localStorage.getItem('authToken');
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || `Request failed with status ${response.status}`);
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+
+    // Parse SSE data lines
+    const lines = buffer.split('\n');
+    buffer = lines.pop(); // Keep incomplete line in buffer
+
+    for (const line of lines) {
+      if (line.startsWith('data: ')) {
+        const jsonStr = line.slice(6);
+        if (jsonStr.trim()) {
+          try {
+            const data = JSON.parse(jsonStr);
+            onChunk(data);
+          } catch (e) {
+            console.warn('Failed to parse SSE data:', jsonStr);
+          }
+        }
+      }
+    }
   }
 }
 
@@ -37,22 +85,23 @@ export const apiService = {
 
   // API Keys
   getApiKeys: () => request('/keys'),
-  // The body of generateApiKey now includes name and projectId
   generateApiKey: (keyData) => request('/keys', { method: 'POST', body: JSON.stringify(keyData) }),
   deleteApiKey: (id) => request(`/keys/${id}`, { method: 'DELETE' }),
-  
+
   // Data Sources (Knowledge Base)
   getDataSources: () => request('/data'),
-  uploadFile: (formData) => request('/data/upload', { method: 'POST', body: formData }), // Corrected Endpoint
+  uploadFile: (formData) => request('/data/upload', { method: 'POST', body: formData }),
   deleteDataSource: (id) => request(`/data/${id}`, { method: 'DELETE' }),
-  
-  // Chat (RAG)
-  sendMessageToRAG: (chatData) => request('/chat', { method: 'POST', body: JSON.stringify(chatData) }), // Corrected Endpoint
-  
+
+  // Chat (RAG) - Non-streaming
+  sendMessageToRAG: (chatData) => request('/chat', { method: 'POST', body: JSON.stringify(chatData) }),
+
+  // Chat (RAG) - Streaming
+  streamMessageToRAG: (chatData, onChunk) => streamingRequest('/chat/stream', chatData, onChunk),
+
   // Analytics
   getAnalytics: (range = '7d') => request(`/analytics?range=${range}`),
 
-  // --- NEW: User Profile ---
-  getProfile: () => request('/users/profile'), 
-
+  // User Profile
+  getProfile: () => request('/users/profile'),
 };

@@ -3,7 +3,7 @@ import { ApiCallLog } from '../models/ApiCallLog.model.js';
 
 export const handlePublicChat = async (req, res) => {
   const { project, user } = req;
-  const { question, history } = req.body;
+  const { question, history, modelProvider } = req.body;
   const startTime = Date.now(); // Start timer
 
   if (!question) {
@@ -12,20 +12,26 @@ export const handlePublicChat = async (req, res) => {
 
   let successful = true;
   let answer = '';
-  
+  let modelUsed = modelProvider || 'gpt-5-nano';
+
   try {
-    answer = await performQuery({
+    const result = await performQuery({
       userId: user._id.toString(),
       question,
       documentIds: project.documents,
       systemPrompt: project.systemPrompt,
       history: history || [],
+      modelProvider: modelProvider || project.model || 'gpt-5-nano',
     });
+
+    answer = result.answer;
+    modelUsed = result.modelUsed;
 
     res.status(200).json({
       answer: answer,
       projectId: project._id,
       projectName: project.name,
+      model: modelUsed,
     });
   } catch (error) {
     successful = false;
@@ -47,6 +53,7 @@ export const handlePublicChat = async (req, res) => {
       successful,
       responseTimeMs,
       tokensUsed,
+      model: modelUsed, // Log which model was used
     }).catch(err => console.error("Failed to log API call:", err));
   }
 };
