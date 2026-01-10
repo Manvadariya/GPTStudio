@@ -3,32 +3,38 @@ import { DocxLoader } from 'langchain/document_loaders/fs/docx';
 import { PDFLoader } from 'langchain/document_loaders/fs/pdf';
 import { TextLoader } from 'langchain/document_loaders/fs/text';
 import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
-import mongoose from 'mongoose';
-import { DocumentChunkSchema } from '../models/DocumentChunk.model.js';
 import { GitHubAzureAIEmbeddings } from '../custom-embeddings.js';
-import { Document } from '../models/Document.model.js'; // Import parent document model
-
-// Create a dedicated connection to the RAG database
-let ragDbConnection = null;
-const getRagDbConnection = async () => {
-  if (!ragDbConnection || ragDbConnection.readyState !== 1) {
-    console.log('Creating new connection to RAG database...');
-    ragDbConnection = mongoose.createConnection(process.env.RAG_MONGO_URI);
-    await ragDbConnection.asPromise();
-    console.log('✅ Connected to RAG Database (rag_db).');
-  }
-  return ragDbConnection;
-};
+import { getCollection } from '../utils/chromaClient.js';
+import crypto from 'crypto';
 
 function sanitizeText(text) {
   if (typeof text !== 'string') return '';
   return text.replace(/\u0000/g, '');
 }
 
+// Helper to ensure metadata values are primitives supported by ChromaDB
+function sanitizeMetadata(metadata) {
+  const sanitized = {};
+  for (const [key, value] of Object.entries(metadata)) {
+    if (value === null || value === undefined) {
+      sanitized[key] = "";
+    } else if (typeof value === 'object') {
+      try {
+        sanitized[key] = JSON.stringify(value);
+      } catch (e) {
+        sanitized[key] = String(value);
+      }
+    } else {
+      sanitized[key] = value;
+    }
+  }
+  return sanitized;
+}
+
 export async function ingestDocument(filePath, parentDocument) {
   const { userId, ragDocumentId, fileName } = parentDocument;
   console.log(`Starting processing for: ${filePath} (User: ${userId})`);
-  
+
   try {
     const fileExtension = path.extname(filePath).toLowerCase();
     let loader;
@@ -38,7 +44,7 @@ export async function ingestDocument(filePath, parentDocument) {
       case '.txt': loader = new TextLoader(filePath); break;
       default: throw new Error(`Unsupported file type: ${fileExtension}`);
     }
-    
+
     const docs = await loader.load();
     const splitter = new RecursiveCharacterTextSplitter({ chunkSize: 1000, chunkOverlap: 200 });
     const chunks = await splitter.splitDocuments(docs);
@@ -50,32 +56,35 @@ export async function ingestDocument(filePath, parentDocument) {
 
     const taggedChunks = chunks.map(chunk => ({
       pageContent: sanitizeText(chunk.pageContent),
-      metadata: { ...chunk.metadata, source: fileName, userId, documentId: ragDocumentId }
+      metadata: sanitizeMetadata({ ...chunk.metadata, source: fileName, userId: userId.toString(), documentId: ragDocumentId })
     }));
-    
-    const embeddings = new GitHubAzureAIEmbeddings();
+
+    const embeddingsGenerator = new GitHubAzureAIEmbeddings();
     console.log('Generating embeddings...');
-    const chunkEmbeddings = await embeddings.embedDocuments(taggedChunks.map(chunk => chunk.pageContent));
-    
-    const documentsToInsert = taggedChunks.map((chunk, index) => ({
-      content: chunk.pageContent,
-      embedding: chunkEmbeddings[index],
-      metadata: chunk.metadata,
-      userId: chunk.metadata.userId.toString(), // Ensure userId is a string
-      documentId: chunk.metadata.documentId,
-    }));
+    const chunkEmbeddings = await embeddingsGenerator.embedDocuments(taggedChunks.map(chunk => chunk.pageContent));
 
-    const ragConnection = await getRagDbConnection();
-    const DocumentChunk = ragConnection.model('DocumentChunk', DocumentChunkSchema);
+    // Prepare data for ChromaDB
+    const ids = taggedChunks.map(() => crypto.randomUUID());
+    const embeddings = chunkEmbeddings;
+    const metadatas = taggedChunks.map(chunk => chunk.metadata);
+    const documents = taggedChunks.map(chunk => chunk.pageContent);
 
-    console.log(`Inserting ${documentsToInsert.length} chunks into MongoDB...`);
-    await DocumentChunk.insertMany(documentsToInsert);
-    
+    // Insert into ChromaDB
+    const collection = await getCollection();
+    console.log(`Inserting ${ids.length} chunks into ChromaDB...`);
+
+    await collection.add({
+      ids,
+      embeddings,
+      metadatas,
+      documents
+    });
+
     // --- IMPORTANT: Update parent document status ---
     parentDocument.status = 'ready';
     await parentDocument.save();
 
-    console.log(`✅ Success! Document ${fileName} processed and stored.`);
+    console.log(`✅ Success! Document ${fileName} processed and stored in ChromaDB.`);
     return ragDocumentId;
 
   } catch (error) {

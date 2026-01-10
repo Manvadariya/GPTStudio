@@ -19,7 +19,7 @@ import { useNavigate } from 'react-router-dom';
 const DEFAULT_PROJECT_FORM = {
   name: '',
   description: '',
-  model: 'gpt-5-nano',
+  model: 'qwen-fast',
   documents: [],
   temperature: 0.7,
   systemPrompt: 'You are a helpful AI assistant that answers questions based on the provided context.'
@@ -176,7 +176,7 @@ export function ProjectsView({ triggerNewProject, onNewProjectTriggered }) {
                 <Label htmlFor="base-model">Base Model</Label>
                 <Select value={projectForm.model} onValueChange={(value) => setProjectForm(prev => ({ ...prev, model: value }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent><SelectItem value="gpt-5-nano">GPT-5 Nano (Azure)</SelectItem><SelectItem value="gpt-oss">GPT-OSS (OpenRouter)</SelectItem></SelectContent>
+                  <SelectContent><SelectItem value="qwen-fast">Step Flash (Recommended)</SelectItem><SelectItem value="gpt-oss">GPT-OSS (OpenRouter)</SelectItem><SelectItem value="gpt-5-nano">GPT-5 Nano (Azure)</SelectItem></SelectContent>
                 </Select>
               </div>
             </div>

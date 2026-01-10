@@ -19,8 +19,8 @@ import analyticsRoutes from './routes/analytics.routes.js';
 
 
 // Validate essential environment variables
-if (!process.env.APP_MONGO_URI || !process.env.RAG_MONGO_URI) {
-  console.error("FATAL ERROR: Make sure APP_MONGO_URI and RAG_MONGO_URI are defined in your .env file.");
+if (!process.env.APP_MONGO_URI) {
+  console.error("FATAL ERROR: Make sure APP_MONGO_URI is defined in your .env file.");
   process.exit(1);
 }
 
@@ -29,7 +29,7 @@ const PORT = process.env.PORT || 3001;
 
 // --- Middleware Setup ---
 // Allow requests from your frontend development server
-app.use(cors({ origin: 'http://localhost:5173' })); 
+app.use(cors({ origin: 'http://localhost:5173' }));
 app.use(express.json()); // To parse JSON request bodies
 
 // --- Database Connections ---
@@ -40,8 +40,23 @@ mongoose.connect(process.env.APP_MONGO_URI)
     console.error('❌ Application DB Connection Error:', err);
     process.exit(1);
   });
-  
+
 // Note: The RAG DB connection will be handled by LangChain's MongoDB loaders directly.
+
+// --- Verify ChromaDB Connection ---
+import { getCollection } from './utils/chromaClient.js';
+import { getEmbeddings } from './custom-embeddings.js';
+
+// Warmup: Pre-initialize connections to eliminate cold-start latency
+Promise.all([
+  getCollection(),
+  Promise.resolve(getEmbeddings()) // Warmup embeddings client
+]).then(([collection]) => {
+  console.log(`✅ Connected to ChromaDB Cloud (Collection: ${collection.name}).`);
+  console.log('✅ Embeddings client warmed up.');
+}).catch(err => {
+  console.error('❌ Warmup Error:', err);
+});
 
 // --- API Routes ---
 app.get('/', (req, res) => res.send('AI Platform Backend is running!'));

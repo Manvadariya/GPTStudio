@@ -30,3 +30,12 @@ export class GitHubAzureAIEmbeddings extends Embeddings {
   embedDocuments(texts) { return this._callEmbeddingAPI(texts.filter(text => text.length > 0)); }
   embedQuery(text) { return this._callEmbeddingAPI([text]).then(embeddings => embeddings[0]); }
 }
+
+// Singleton instance for reuse across queries
+let embeddingsInstance = null;
+export function getEmbeddings() {
+  if (!embeddingsInstance) {
+    embeddingsInstance = new GitHubAzureAIEmbeddings();
+  }
+  return embeddingsInstance;
+}

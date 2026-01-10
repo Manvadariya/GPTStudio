@@ -7,18 +7,33 @@ import OpenAI from "openai";
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Factory function to create the appropriate chat model based on provider
-export function createChatModel(provider = 'gpt-5-nano') {
+// Default to fast Qwen model for RAG queries
+export function createChatModel(provider = 'qwen-fast') {
   return new UnifiedChatModel(provider);
 }
 
 export class UnifiedChatModel extends SimpleChatModel {
-  constructor(provider = 'gpt-5-nano') {
+  constructor(provider = 'qwen-fast') {
     super({});
     this.provider = provider;
 
-    if (provider === 'gpt-oss') {
-      // OpenRouter configuration
-      const { OPENROUTER_AI_ENDPOINT, OPENROUTER_API_KEY, OPENROUTER_CHAT_MODEL_NAME } = process.env;
+    const { OPENROUTER_AI_ENDPOINT, OPENROUTER_API_KEY, OPENROUTER_CHAT_MODEL_NAME } = process.env;
+    const { AZURE_AI_ENDPOINT, AZURE_AI_API_KEY, CHAT_MODEL_NAME } = process.env;
+
+    if (provider === 'qwen-fast') {
+      // Fast Qwen model via OpenRouter (default for RAG)
+      if (!OPENROUTER_AI_ENDPOINT || !OPENROUTER_API_KEY) {
+        throw new Error("Missing OpenRouter environment variables for qwen-fast.");
+      }
+      this.modelName = process.env.FAST_MODEL_NAME || 'stepfun/step-3.5-flash:free';
+      this.client = new OpenAI({
+        baseURL: OPENROUTER_AI_ENDPOINT,
+        apiKey: OPENROUTER_API_KEY,
+        timeout: 30 * 1000, // 30 seconds for fast model
+      });
+      console.log(`Initialized Qwen Fast model: ${this.modelName}`);
+    } else if (provider === 'gpt-oss') {
+      // OpenRouter with configured model (fallback for complex reasoning)
       if (!OPENROUTER_AI_ENDPOINT || !OPENROUTER_API_KEY || !OPENROUTER_CHAT_MODEL_NAME) {
         throw new Error("Missing OpenRouter environment variables.");
       }
@@ -26,12 +41,11 @@ export class UnifiedChatModel extends SimpleChatModel {
       this.client = new OpenAI({
         baseURL: OPENROUTER_AI_ENDPOINT,
         apiKey: OPENROUTER_API_KEY,
-        timeout: 60 * 1000, // 60 seconds for streaming
+        timeout: 60 * 1000, // 60 seconds for larger model
       });
       console.log(`Initialized OpenRouter model: ${this.modelName}`);
     } else {
-      // Azure/GitHub AI configuration (default)
-      const { AZURE_AI_ENDPOINT, AZURE_AI_API_KEY, CHAT_MODEL_NAME } = process.env;
+      // Azure/GitHub AI configuration (gpt-5-nano)
       if (!AZURE_AI_ENDPOINT || !AZURE_AI_API_KEY || !CHAT_MODEL_NAME) {
         throw new Error("Missing Azure AI environment variables.");
       }

@@ -47,7 +47,7 @@ export function PlaygroundView() {
   const [isTyping, setIsTyping] = useState(false);
   const [selectedRagDocumentIds, setSelectedRagDocumentIds] = useState([]);
   const [modelConfig, setModelConfig] = useState({
-    model: "gpt-5-nano",
+    model: "qwen-fast",
     temperature: 0.7,
     maxTokens: 2048,
     systemPrompt: "You are a helpful AI assistant.",
@@ -112,8 +112,8 @@ export function PlaygroundView() {
       }));
       const chatData = { question, documentIds: selectedRagDocumentIds, systemPrompt: modelConfig.systemPrompt, history: formattedHistory, modelProvider: modelConfig.model };
 
-      // Use streaming for GPT-OSS model
-      if (modelConfig.model === 'gpt-oss') {
+      // Use streaming for qwen-fast and gpt-oss models
+      if (modelConfig.model === 'qwen-fast' || modelConfig.model === 'gpt-oss') {
         const assistantMessageId = `msg_${Date.now() + 1}`;
         let accumulatedContent = '';
         let messageAdded = false;
@@ -206,7 +206,7 @@ export function PlaygroundView() {
                 <AccordionTrigger className="py-2 text-sm hover:no-underline font-medium">Advanced Settings</AccordionTrigger>
                 <AccordionContent className="space-y-6 pt-4 border-t border-muted/10">
                   <div className="space-y-2"><Label htmlFor="systemPrompt" className="text-xs">System Prompt</Label><Textarea id="systemPrompt" placeholder="e.g., You are a helpful pirate assistant..." value={modelConfig.systemPrompt} onChange={(e) => setModelConfig(prev => ({ ...prev, systemPrompt: e.target.value }))} className="min-h-[120px] resize-y text-sm" /></div>
-                  <div className="space-y-2"><Label htmlFor="model" className="text-xs">Model</Label><Select value={modelConfig.model} onValueChange={(value) => setModelConfig(prev => ({ ...prev, model: value }))}><SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="gpt-5-nano">GPT-5 Nano (Azure)</SelectItem><SelectItem value="gpt-oss">GPT-OSS (OpenRouter)</SelectItem></SelectContent></Select></div>
+                  <div className="space-y-2"><Label htmlFor="model" className="text-xs">Model</Label><Select value={modelConfig.model} onValueChange={(value) => setModelConfig(prev => ({ ...prev, model: value }))}><SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="qwen-fast">Step Flash (Recommended)</SelectItem><SelectItem value="gpt-oss">GPT-OSS (OpenRouter)</SelectItem><SelectItem value="gpt-5-nano">GPT-5 Nano (Azure)</SelectItem></SelectContent></Select></div>
                   <div className="space-y-2"><Label htmlFor="temperature" className="text-xs">Temperature: {modelConfig.temperature}</Label><Slider value={[modelConfig.temperature]} onValueChange={([value]) => setModelConfig(prev => ({ ...prev, temperature: value }))} max={2} min={0} step={0.1} /></div>
                 </AccordionContent>
               </AccordionItem>

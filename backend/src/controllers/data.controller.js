@@ -1,9 +1,9 @@
 import fs from 'fs';
 import crypto from 'crypto';
 import { Document } from '../models/Document.model.js';
-import { DocumentChunkSchema } from '../models/DocumentChunk.model.js';
+// import { DocumentChunkSchema } from '../models/DocumentChunk.model.js'; // Removed
 import { ingestDocument } from '../logic/ingestion.js';
-import mongoose from 'mongoose';
+// import mongoose from 'mongoose'; // Removed
 
 // @desc    Get all data sources for a user
 // @route   GET /api/data
@@ -85,16 +85,20 @@ export const deleteDataSource = async (req, res) => {
             return res.status(401).json({ message: 'User not authorized.' });
         }
 
-        // Also delete associated chunks from the RAG database
-        const ragConnection = mongoose.createConnection(process.env.RAG_MONGO_URI);
-        const DocumentChunk = ragConnection.model('DocumentChunk', DocumentChunkSchema);
-        await DocumentChunk.deleteMany({ documentId: document.ragDocumentId });
-        await ragConnection.close();
-        
+        // Also delete associated chunks from ChromaDB
+        const { getCollection } = await import('../utils/chromaClient.js');
+        const collection = await getCollection();
+
+        // Delete by documentId (ragDocumentId)
+        await collection.delete({
+            where: { "documentId": document.ragDocumentId }
+        });
+
         await Document.deleteOne({ _id: req.params.id });
 
         res.status(200).json({ message: 'Data source and all related chunks deleted.' });
     } catch (error) {
+        console.error("Delete Error:", error);
         res.status(500).json({ message: 'Server Error: Could not delete data source.' });
     }
 };

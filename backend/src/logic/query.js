@@ -1,8 +1,8 @@
 import { Document } from "@langchain/core/documents";
-import { MongoClient } from "mongodb";
+// import { MongoClient } from "mongodb"; // Removed
 import { HumanMessage, SystemMessage, AIMessage } from "@langchain/core/messages";
 import { formatDocumentsAsString } from "langchain/util/document";
-import { GitHubAzureAIEmbeddings } from "../custom-embeddings.js";
+// GitHubAzureAIEmbeddings is now imported dynamically via getEmbeddings()
 import { createChatModel } from "../custom-chat-model.js";
 
 const USER_TEMPLATE_WITH_CONTEXT = `Use the following context to answer the question at the end.
@@ -13,39 +13,127 @@ QUESTION:
 
 const DEFAULT_SYSTEM_TEMPLATE = `You are a helpful AI assistant. Answer the user's questions based on the provided context. If the context does not contain the answer, state that you cannot answer from the given information.`;
 
+const SUMMARIZE_SYSTEM_TEMPLATE = `You are a helpful AI assistant. Your task is to provide a comprehensive summary of the provided context. Be thorough and cover all key points.`;
+
+// Timeout utility for external API calls
+const withTimeout = (promise, ms, errorMsg = 'Operation timed out') =>
+  Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(errorMsg)), ms))
+  ]);
+
+// Intent detection keywords
+const SUMMARY_KEYWORDS = ['summarize', 'summary', 'overview', 'entire', 'all pages', 'full document', 'complete', 'whole document', 'everything'];
+
+function detectIntent(question) {
+  const lower = question.toLowerCase();
+  return SUMMARY_KEYWORDS.some(kw => lower.includes(kw)) ? 'summarize' : 'qa';
+}
+
+
 // Helper to retrieve documents and prepare context
-async function prepareContext({ userId, question, documentIds }) {
-  const embeddings = new GitHubAzureAIEmbeddings();
-  const client = new MongoClient(process.env.RAG_MONGO_URI);
+async function prepareContext({ userId, question, documentIds, intent }) {
+  const { getEmbeddings } = await import('../custom-embeddings.js');
+  const { getCollection } = await import('../utils/chromaClient.js');
+  const embeddings = getEmbeddings();
+  const startTime = Date.now();
 
   try {
-    await client.connect();
-    const dbName = new URL(process.env.RAG_MONGO_URI).pathname.substring(1) || "rag_db";
-    const collection = client.db(dbName).collection("document_chunks");
-    const queryEmbedding = await embeddings.embedQuery(question);
+    // Parallelize with timeout: generate query embedding AND fetch collection at the same time
+    const [queryEmbedding, collection] = await withTimeout(
+      Promise.all([
+        embeddings.embedQuery(question),
+        getCollection()
+      ]),
+      15000, // 15 second timeout for embedding + collection
+      'Embedding or collection fetch timed out'
+    );
 
     if (!queryEmbedding) throw new Error("Failed to generate an embedding for the query.");
 
-    const filter = { userId: userId.toString() };
+    // Construct filter
+    const conditions = [{ userId: userId.toString() }];
+
     if (documentIds && documentIds.length > 0) {
-      filter.documentId = { $in: documentIds };
+      if (documentIds.length === 1) {
+        conditions.push({ documentId: documentIds[0] });
+      } else {
+        conditions.push({ documentId: { $in: documentIds } });
+      }
     }
 
-    const pipeline = [{
-      $vectorSearch: {
-        index: "vector_index", path: "embedding", queryVector: queryEmbedding,
-        numCandidates: 150, limit: 10, filter: filter,
-      },
-    }, { $limit: 4 }];
+    const whereClause = conditions.length > 1 ? { $and: conditions } : conditions[0];
 
-    const retrievedDocs = await collection.aggregate(pipeline).toArray();
+    // Fast initial retrieval: prioritize time-to-first-token
+    // Q&A: 4 chunks (focused, fast)
+    // Summarize: 8 chunks (initial batch, can expand if needed)
+    const nResults = intent === 'summarize' ? 8 : 4;
+
+    const results = await collection.query({
+      queryEmbeddings: [queryEmbedding],
+      nResults: nResults,
+      where: whereClause
+    });
+
+    // Flatten results
+    const retrievedDocs = [];
+    if (results.ids.length > 0) {
+      const ids = results.ids[0];
+      const docs = results.documents[0];
+      const metadatas = results.metadatas[0];
+
+      for (let i = 0; i < ids.length; i++) {
+        if (docs[i]) {
+          retrievedDocs.push({
+            pageContent: docs[i],
+            metadata: metadatas[i]
+          });
+        }
+      }
+    }
+
     const formattedDocs = retrievedDocs.map(
-      doc => new Document({ pageContent: doc.content, metadata: doc.metadata })
+      doc => new Document({ pageContent: doc.pageContent, metadata: doc.metadata })
     );
-    return formatDocumentsAsString(formattedDocs);
-  } finally {
-    await client.close();
+
+    const durationMs = Date.now() - startTime;
+    console.log(JSON.stringify({ event: 'context_prepared', intent, docCount: retrievedDocs.length, durationMs }));
+
+    return { context: formatDocumentsAsString(formattedDocs), docCount: retrievedDocs.length, intent };
+  } catch (error) {
+    const durationMs = Date.now() - startTime;
+    console.error(JSON.stringify({ event: 'context_error', error: error.message, durationMs }));
+    throw error;
   }
+}
+
+// Hierarchical summarization for large context
+async function hierarchicalSummarize(chunks, question, chatModel) {
+  const CHUNK_BATCH_SIZE = 5;
+  const summaries = [];
+
+  // Stage 1: Summarize in batches
+  for (let i = 0; i < chunks.length; i += CHUNK_BATCH_SIZE) {
+    const batch = chunks.slice(i, i + CHUNK_BATCH_SIZE).join('\n\n---\n\n');
+    const messages = [
+      new SystemMessage("Summarize the following text concisely, preserving key facts and information."),
+      new HumanMessage(batch)
+    ];
+    const summary = await chatModel._call(messages);
+    summaries.push(summary);
+  }
+
+  // Stage 2: Final summary from intermediate summaries
+  if (summaries.length === 1) {
+    return summaries[0];
+  }
+
+  const combinedSummaries = summaries.join('\n\n---\n\n');
+  const finalMessages = [
+    new SystemMessage(SUMMARIZE_SYSTEM_TEMPLATE),
+    new HumanMessage(`Based on these section summaries, provide a comprehensive final summary:\n\n${combinedSummaries}\n\nOriginal question: ${question}`)
+  ];
+  return await chatModel._call(finalMessages);
 }
 
 // Build messages array for chat model
@@ -73,15 +161,19 @@ function buildMessages({ context, question, systemPrompt, history }) {
   return messages;
 }
 
-// Non-streaming query (original)
+// Non-streaming query
 export async function performQuery({ userId, question, documentIds, systemPrompt, history, modelProvider }) {
-  const context = await prepareContext({ userId, question, documentIds });
-  const messages = buildMessages({ context, question, systemPrompt, history });
+  const intent = detectIntent(question);
+  console.log(`🎯 Detected intent: ${intent}`);
 
+  const { context, docCount } = await prepareContext({ userId, question, documentIds, intent });
   const chatModel = createChatModel(modelProvider);
   const modelUsed = chatModel.getProvider();
 
+  console.log(`📚 Retrieved ${docCount} chunks for ${intent} query`);
   console.log(`🧠 Generating answer using ${modelUsed} model...`);
+
+  const messages = buildMessages({ context, question, systemPrompt, history });
   const answer = await chatModel._call(messages);
 
   return { answer, modelUsed };
@@ -89,16 +181,20 @@ export async function performQuery({ userId, question, documentIds, systemPrompt
 
 // Streaming query - returns async generator for SSE
 export async function* performStreamingQuery({ userId, question, documentIds, systemPrompt, history, modelProvider }) {
-  const context = await prepareContext({ userId, question, documentIds });
-  const messages = buildMessages({ context, question, systemPrompt, history });
+  const intent = detectIntent(question);
+  console.log(`🎯 Detected intent: ${intent}`);
 
+  const { context, docCount } = await prepareContext({ userId, question, documentIds, intent });
   const chatModel = createChatModel(modelProvider);
   const modelUsed = chatModel.getProvider();
 
+  console.log(`📚 Retrieved ${docCount} chunks for ${intent} query`);
   console.log(`🌊 Streaming answer using ${modelUsed} model...`);
 
   // Yield model info first
-  yield { type: 'meta', model: modelUsed };
+  yield { type: 'meta', model: modelUsed, intent, docCount };
+
+  const messages = buildMessages({ context, question, systemPrompt, history });
 
   // Stream the response
   for await (const chunk of chatModel.streamCall(messages)) {
