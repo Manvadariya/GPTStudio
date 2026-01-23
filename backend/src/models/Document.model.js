@@ -4,6 +4,12 @@ const DocumentSchema = new mongoose.Schema({
   fileName: { type: String, required: true },
   fileSize: { type: Number, required: true },
   fileType: { type: String, required: true },
+  sourceType: {
+    type: String,
+    enum: ['file', 'web'],
+    default: 'file'
+  },
+  sourceUrl: { type: String },
   status: {
     type: String,
     enum: ['processing', 'ready', 'error'],

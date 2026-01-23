@@ -95,3 +95,102 @@ export async function ingestDocument(filePath, parentDocument) {
     throw error; // Re-throw to be caught by the controller
   }
 }
+
+export async function ingestWebsite(url, parentDocument) {
+  const { userId, ragDocumentId } = parentDocument;
+  console.log(`Starting web ingestion for: ${url} (User: ${userId})`);
+
+  try {
+    const { crawlWebsite } = await import('./webCrawler.js');
+    const { RecursiveCharacterTextSplitter } = await import('langchain/text_splitter');
+
+    // Crawl and extract content (depth 2 by default)
+    const crawledPages = await crawlWebsite(url, 2, 20);
+
+    if (crawledPages.length === 0) {
+      throw new Error('No content could be extracted from the website.');
+    }
+
+    const splitter = new RecursiveCharacterTextSplitter({ chunkSize: 1000, chunkOverlap: 200 });
+    let allTaggedChunks = [];
+
+    for (const page of crawledPages) {
+      const docs = await splitter.createDocuments([page.text], [{
+        source: 'web',
+        sourceUrl: page.url,
+        page_title: page.title,
+        ingestion_timestamp: page.crawledAt,
+        userId: userId.toString(),
+        documentId: ragDocumentId
+      }]);
+
+      const tagged = docs.map(doc => ({
+        pageContent: sanitizeText(doc.pageContent),
+        metadata: sanitizeMetadata(doc.metadata)
+      }));
+
+      allTaggedChunks.push(...tagged);
+    }
+
+    console.log(`-> Extracted total ${allTaggedChunks.length} chunks from ${crawledPages.length} pages.`);
+
+    if (allTaggedChunks.length === 0) {
+      throw new Error('Content extracted but no valid chunks generated.');
+    }
+
+    const embeddingsGenerator = new GitHubAzureAIEmbeddings();
+    console.log('Generating embeddings for web chunks...');
+
+    // Process in batches if too many chunks to avoid memory/rate limits
+    const batchSize = 100;
+    const ids = [];
+    const embeddings = [];
+    const metadatas = [];
+    const documents = [];
+
+    for (let i = 0; i < allTaggedChunks.length; i += batchSize) {
+      const batch = allTaggedChunks.slice(i, i + batchSize);
+      const batchTexts = batch.map(c => c.pageContent);
+
+      const batchEmbeddings = await embeddingsGenerator.embedDocuments(batchTexts);
+
+      batch.forEach((chunk, idx) => {
+        ids.push(crypto.randomUUID());
+        embeddings.push(batchEmbeddings[idx]);
+        metadatas.push(chunk.metadata);
+        documents.push(chunk.pageContent);
+      });
+      console.log(`Processed batch ${i / batchSize + 1}/${Math.ceil(allTaggedChunks.length / batchSize)}`);
+    }
+
+    // Insert into ChromaDB
+    const collection = await getCollection();
+    console.log(`Inserting ${ids.length} web chunks into ChromaDB...`);
+
+    // Insert in batches of 500 max to be safe with Chroma
+    const chromaBatchSize = 500;
+    for (let i = 0; i < ids.length; i += chromaBatchSize) {
+      const sliceEnd = Math.min(i + chromaBatchSize, ids.length);
+      await collection.add({
+        ids: ids.slice(i, sliceEnd),
+        embeddings: embeddings.slice(i, sliceEnd),
+        metadatas: metadatas.slice(i, sliceEnd),
+        documents: documents.slice(i, sliceEnd)
+      });
+    }
+
+    // --- IMPORTANT: Update parent document status ---
+    parentDocument.status = 'ready';
+    parentDocument.fileSize = allTaggedChunks.length; // Store chunk count as size approximation
+    await parentDocument.save();
+
+    console.log(`✅ Success! Website ${url} processed and stored in ChromaDB.`);
+    return ragDocumentId;
+
+  } catch (error) {
+    console.error(`❌ Web ingestion failed for ${url}:`, error);
+    parentDocument.status = 'error';
+    await parentDocument.save();
+    throw error;
+  }
+}

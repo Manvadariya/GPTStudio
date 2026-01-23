@@ -6,10 +6,16 @@ import OpenAI from "openai";
 
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
+// Cache model instances to avoid re-initialization on every request
+const modelCache = {};
+
 // Factory function to create the appropriate chat model based on provider
 // Default to fast Qwen model for RAG queries
 export function createChatModel(provider = 'qwen-fast') {
-  return new UnifiedChatModel(provider);
+  if (!modelCache[provider]) {
+    modelCache[provider] = new UnifiedChatModel(provider);
+  }
+  return modelCache[provider];
 }
 
 export class UnifiedChatModel extends SimpleChatModel {
@@ -29,7 +35,7 @@ export class UnifiedChatModel extends SimpleChatModel {
       this.client = new OpenAI({
         baseURL: OPENROUTER_AI_ENDPOINT,
         apiKey: OPENROUTER_API_KEY,
-        timeout: 30 * 1000, // 30 seconds for fast model
+        timeout: 15 * 1000, // 15 seconds for fast model
       });
       console.log(`Initialized Qwen Fast model: ${this.modelName}`);
     } else if (provider === 'gpt-oss') {

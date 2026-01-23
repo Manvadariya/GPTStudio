@@ -3,7 +3,7 @@ import multer from 'multer';
 import fs from 'fs';
 import path from 'path';
 import { protect } from '../middleware/auth.middleware.js';
-import { getDataSources, uploadDataSource, deleteDataSource } from '../controllers/data.controller.js';
+import { getDataSources, uploadDataSource, deleteDataSource, ingestUrl } from '../controllers/data.controller.js';
 
 const router = express.Router();
 
@@ -36,6 +36,9 @@ router.get('/', getDataSources);
 
 // POST /api/data/upload - Handles file uploads
 router.post('/upload', upload.single('file'), uploadDataSource);
+
+// POST /api/data/ingest-url - Handles website ingestion
+router.post('/ingest-url', ingestUrl);
 
 // DELETE /api/data/:id - Deletes a specific data source
 router.delete('/:id', deleteDataSource);

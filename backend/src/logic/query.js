@@ -1,9 +1,9 @@
 import { Document } from "@langchain/core/documents";
-// import { MongoClient } from "mongodb"; // Removed
 import { HumanMessage, SystemMessage, AIMessage } from "@langchain/core/messages";
 import { formatDocumentsAsString } from "langchain/util/document";
-// GitHubAzureAIEmbeddings is now imported dynamically via getEmbeddings()
 import { createChatModel } from "../custom-chat-model.js";
+import { getEmbeddings } from '../custom-embeddings.js';
+import { getCollection } from '../utils/chromaClient.js';
 
 const USER_TEMPLATE_WITH_CONTEXT = `Use the following context to answer the question at the end.
 CONTEXT:
@@ -33,8 +33,6 @@ function detectIntent(question) {
 
 // Helper to retrieve documents and prepare context
 async function prepareContext({ userId, question, documentIds, intent }) {
-  const { getEmbeddings } = await import('../custom-embeddings.js');
-  const { getCollection } = await import('../utils/chromaClient.js');
   const embeddings = getEmbeddings();
   const startTime = Date.now();
 
@@ -51,23 +49,32 @@ async function prepareContext({ userId, question, documentIds, intent }) {
 
     if (!queryEmbedding) throw new Error("Failed to generate an embedding for the query.");
 
-    // Construct filter
-    const conditions = [{ userId: userId.toString() }];
+    // Construct filter - ChromaDB uses $or for multiple values
+    let whereClause = { userId: userId.toString() };
 
     if (documentIds && documentIds.length > 0) {
       if (documentIds.length === 1) {
-        conditions.push({ documentId: documentIds[0] });
+        // Single document: simple AND
+        whereClause = { $and: [{ userId: userId.toString() }, { documentId: documentIds[0] }] };
       } else {
-        conditions.push({ documentId: { $in: documentIds } });
+        // Multiple documents: use $or for documentId matching
+        const docConditions = documentIds.map(id => ({ documentId: id }));
+        whereClause = {
+          $and: [
+            { userId: userId.toString() },
+            { $or: docConditions }
+          ]
+        };
       }
     }
 
-    const whereClause = conditions.length > 1 ? { $and: conditions } : conditions[0];
+    // Scale chunk retrieval with document count
+    // More docs = need more chunks to cover all of them
+    const baseChunks = intent === 'summarize' ? 8 : 6;
+    const docMultiplier = Math.min(documentIds?.length || 1, 3); // Cap at 3x
+    const nResults = baseChunks * docMultiplier;
 
-    // Fast initial retrieval: prioritize time-to-first-token
-    // Q&A: 4 chunks (focused, fast)
-    // Summarize: 8 chunks (initial batch, can expand if needed)
-    const nResults = intent === 'summarize' ? 8 : 4;
+    console.log(`🔍 Querying ${nResults} chunks across ${documentIds?.length || 'all'} documents`);
 
     const results = await collection.query({
       queryEmbeddings: [queryEmbedding],

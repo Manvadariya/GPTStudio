@@ -102,3 +102,51 @@ export const deleteDataSource = async (req, res) => {
         res.status(500).json({ message: 'Server Error: Could not delete data source.' });
     }
 };
+
+// @desc    Ingest a website URL
+// @route   POST /api/data/ingest-url
+export const ingestUrl = async (req, res) => {
+    const { url } = req.body;
+    if (!url) {
+        return res.status(400).json({ message: "URL is required." });
+    }
+
+    try {
+        const ragDocumentId = crypto.randomUUID();
+        // Create document record
+        const parentDocument = await Document.create({
+            fileName: url,
+            fileSize: 0, // Will be updated after crawling
+            fileType: 'text/html',
+            sourceType: 'web',
+            sourceUrl: url,
+            userId: req.user.id,
+            ragDocumentId: ragDocumentId,
+            status: 'processing',
+        });
+
+        // Respond immediately
+        res.status(202).json({
+            message: 'Website accepted for processing.',
+            document: {
+                id: parentDocument._id,
+                ragDocumentId: parentDocument.ragDocumentId,
+                name: parentDocument.fileName,
+                format: parentDocument.fileType,
+                size: parentDocument.fileSize,
+                status: parentDocument.status,
+                uploadedAt: parentDocument.createdAt,
+            }
+        });
+
+        // Background Processing
+        const { ingestWebsite } = await import('../logic/ingestion.js');
+        ingestWebsite(url, parentDocument).catch(err => {
+            console.error("Background Web Ingestion Error:", err);
+        });
+
+    } catch (error) {
+        console.error("Ingest URL Error:", error);
+        res.status(500).json({ message: "Server Error: Could not process URL." });
+    }
+};

@@ -91,6 +91,7 @@ export const apiService = {
   // Data Sources (Knowledge Base)
   getDataSources: () => request('/data'),
   uploadFile: (formData) => request('/data/upload', { method: 'POST', body: formData }),
+  ingestUrl: (url) => request('/data/ingest-url', { method: 'POST', body: JSON.stringify({ url }) }),
   deleteDataSource: (id) => request(`/data/${id}`, { method: 'DELETE' }),
 
   // Chat (RAG) - Non-streaming

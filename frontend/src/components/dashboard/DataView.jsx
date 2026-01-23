@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import {
   Upload, FileTxt, FileDoc, FilePdf, Link, Trash, Download, Eye,
-  CloudArrowUp, CheckCircle, Clock, X, FileText
+  CloudArrowUp, CheckCircle, Clock, X, FileText, Globe
 } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -18,6 +18,8 @@ import { apiService } from '../../lib/apiService';
 export function DataView() {
   const { dataSources, setDataSources, user } = useAppContext();
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
+  const [isUrlDialogOpen, setIsUrlDialogOpen] = useState(false);
+  const [urlInput, setUrlInput] = useState('');
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef(null);
 
@@ -92,6 +94,39 @@ export function DataView() {
     });
   };
 
+  const handleUrlSubmit = async () => {
+    if (!urlInput) return;
+    try {
+      new URL(urlInput); // Simple validation
+    } catch {
+      toast.error('Invalid URL format');
+      return;
+    }
+
+    const tempId = `ingesting_${Date.now()}`;
+    const optimisticSource = {
+      id: tempId,
+      name: urlInput,
+      status: 'processing',
+      size: 0,
+      format: 'text/html',
+      uploadedAt: new Date().toISOString()
+    };
+
+    setDataSources(current => [optimisticSource, ...current]);
+    setIsUrlDialogOpen(false);
+    setUrlInput('');
+
+    try {
+      const response = await apiService.ingestUrl(urlInput);
+      setDataSources(current => current.map(ds => (ds.id === tempId ? response.document : ds)));
+      toast.info(`Website ingestion started for ${urlInput}`);
+    } catch (error) {
+      toast.error(`Ingestion failed: ${error.message}`);
+      setDataSources(current => current.filter(ds => ds.id !== tempId));
+    }
+  };
+
   const handleDeleteDataSource = async (id) => {
     const originalSources = [...dataSources];
     setDataSources(current => current.filter(ds => ds.id !== id));
@@ -108,6 +143,10 @@ export function DataView() {
     if (format?.includes('pdf')) return <FilePdf size={20} className="text-red-500" />;
     if (format?.includes('word')) return <FileDoc size={20} className="text-blue-500" />;
     if (format?.includes('plain')) return <FileTxt size={20} className="text-gray-500" />;
+    if (format?.includes('pdf')) return <FilePdf size={20} className="text-red-500" />;
+    if (format?.includes('word')) return <FileDoc size={20} className="text-blue-500" />;
+    if (format?.includes('plain')) return <FileTxt size={20} className="text-gray-500" />;
+    if (format?.includes('html') || format?.includes('web')) return <Globe size={20} className="text-blue-400" />;
     return <FileText size={20} className="text-gray-500" />;
   };
 
@@ -136,6 +175,30 @@ export function DataView() {
           <p className="text-muted-foreground">Upload and manage data sources for your AI models</p>
         </div>
         <div className="flex gap-2">
+          <Dialog open={isUrlDialogOpen} onOpenChange={setIsUrlDialogOpen}>
+            <DialogTrigger asChild><Button variant="outline" className="gap-2"><Globe size={16} />Add URL</Button></DialogTrigger>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Add Website</DialogTitle>
+                <DialogDescription>Crawl and index a website for your Knowledge Base</DialogDescription>
+              </DialogHeader>
+              <div className="py-4 space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="url">Website URL</Label>
+                  <Input id="url" placeholder="https://example.com/docs" value={urlInput} onChange={(e) => setUrlInput(e.target.value)} />
+                </div>
+                <div className="text-xs text-muted-foreground p-3 bg-muted rounded-md flex gap-2">
+                  <Clock size={14} className="mt-0.5 shrink-0" />
+                  <p>Crawling happens in the background. Content will be available for RAG once processing is complete.</p>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsUrlDialogOpen(false)}>Cancel</Button>
+                <Button onClick={handleUrlSubmit} disabled={!urlInput}>Start Ingestion</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
           <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
             <DialogTrigger asChild><Button className="gap-2"><Upload size={16} />Upload Files</Button></DialogTrigger>
             <DialogContent className="sm:max-w-lg">
