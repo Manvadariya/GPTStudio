@@ -223,10 +223,26 @@ export function DataView() {
         </div>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card><CardContent className="p-6"><div className="flex items-center justify-between"><div><p className="text-sm font-medium text-muted-foreground">Total Sources</p><p className="text-2xl font-bold">{dataSources.length}</p></div><FileText size={24} className="text-primary" weight="duotone" /></div></CardContent></Card>
-        <Card><CardContent className="p-6"><div className="flex items-center justify-between"><div><p className="text-sm font-medium text-muted-foreground">Ready</p><p className="text-2xl font-bold text-green-600">{dataSources.filter(ds => ds.status === 'ready').length}</p></div><CheckCircle size={24} className="text-green-600" weight="duotone" /></div></CardContent></Card>
-        <Card><CardContent className="p-6"><div className="flex items-center justify-between"><div><p className="text-sm font-medium text-muted-foreground">Processing</p><p className="text-2xl font-bold text-yellow-600">{dataSources.filter(ds => ds.status === 'processing').length}</p></div><Clock size={24} className="text-yellow-600" weight="duotone" /></div></CardContent></Card>
-        <Card><CardContent className="p-6"><div className="flex items-center justify-between"><div><p className="text-sm font-medium text-muted-foreground">Total Size</p><p className="text-2xl font-bold">{formatFileSize(dataSources.reduce((acc, ds) => acc + (ds.size || 0), 0))}</p></div><Upload size={24} className="text-primary" weight="duotone" /></div></CardContent></Card>
+        {[
+          { title: "Total Sources", value: dataSources.length, icon: FileText, color: "text-primary" },
+          { title: "Ready", value: dataSources.filter(ds => ds.status === 'ready').length, icon: CheckCircle, color: "text-green-600" },
+          { title: "Processing", value: dataSources.filter(ds => ds.status === 'processing').length, icon: Clock, color: "text-yellow-600" },
+          { title: "Total Size", value: formatFileSize(dataSources.reduce((acc, ds) => acc + (ds.size || 0), 0)), icon: Upload, color: "text-primary" }
+        ].map((stat, index) => (
+          <motion.div key={index} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} whileHover={{ y: -5 }} transition={{ duration: 0.3, delay: index * 0.1 }}>
+            <Card className="hover:border-blue-500/30 transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/5 h-full">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">{stat.title}</p>
+                    <p className="text-2xl font-bold text-foreground">{stat.value}</p>
+                  </div>
+                  <stat.icon size={24} className={stat.color} weight="duotone" />
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
       </div>
       {dataSources.length === 0 ? (
         <Card className="p-12 text-center">

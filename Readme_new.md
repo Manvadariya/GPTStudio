@@ -251,16 +251,38 @@ Create self-contained AI projects with:
 Integrate your chatbot anywhere:
 
 - 🔑 **Unique API Keys** - Project-specific authentication
-- 📡 **RESTful Endpoints** - Easy integration
+- 📡 **Unified Endpoints** - Support for both standard and streaming chat
 - 📊 **Usage Analytics** - Track API calls & performance
 - 🌍 **Universal Compatibility** - Works with any platform
 
+---
+
+### 📡 API Reference (API Key Auth)
+
+All API requests must include your project's API key in the `Authorization` header as a Bearer token.
+
+#### 1. Standard Chat
+Method: `POST`  
+URL: `/api/chat`  
+Body (JSON):
+```json
+{
+  "question": "What is the capital of France?",
+  "history": []
+}
+```
+
+#### 2. Streaming Chat (SSE)
+Method: `POST`  
+URL: `/api/chat/stream`  
+Tip: Use this for real-time responsiveness. This returns a standard Server-Sent Events stream.
+
 ```bash
-# Quick Integration Example
-curl -X POST https://api.gptstudio.com/chat \
-  -H "Authorization: Bearer YOUR_API_KEY" \
+# Example Curl
+curl -X POST http://localhost:3001/api/chat/stream \
+  -H "Authorization: Bearer sk-proj-your-key-here" \
   -H "Content-Type: application/json" \
-  -d '{"message": "How can I help you?"}'
+  -d '{"question": "How do I use this API?"}'
 ```
 
 <div align="center">

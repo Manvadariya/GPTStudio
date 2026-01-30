@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { MultiSelect } from '@/components/ui/multi-select';
-import { Plus, Rocket, Clock, CheckCircle, Code, Brain, Trash, PencilSimple, Folder, Eye, Link as LinkIcon } from '@phosphor-icons/react';
+import { Plus, Rocket, Clock, CheckCircle, Code, Brain, Trash, PencilSimple, Folder, Eye, Link as LinkIcon, Sparkle } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import { useAppContext } from '../../context/AppContext';
@@ -19,7 +19,7 @@ import { useNavigate } from 'react-router-dom';
 const DEFAULT_PROJECT_FORM = {
   name: '',
   description: '',
-  model: 'qwen-fast',
+  model: 'gpt-oss',
   documents: [],
   temperature: 0.7,
   systemPrompt: 'You are a helpful AI assistant that answers questions based on the provided context.'
@@ -161,46 +161,57 @@ export function ProjectsView({ triggerNewProject, onNewProjectTriggered }) {
       </div>
 
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>{modalMode === 'create' ? 'Create New Project' : 'Edit Project'}</DialogTitle>
-            <DialogDescription>{modalMode === 'create' ? 'Configure and save your custom AI assistant.' : 'Update your project configuration.'}</DialogDescription>
+        <DialogContent className="sm:max-w-2xl bg-white rounded-2xl border-[#0b131e]/10 shadow-2xl p-0 overflow-hidden">
+          <DialogHeader className="p-6 bg-[#eff5fb]/50 border-b border-[#0b131e]/5">
+            <DialogTitle className="text-2xl font-bold text-[#0b131e]">{modalMode === 'create' ? 'Create New Project' : 'Edit Project'}</DialogTitle>
+            <DialogDescription className="text-[#0b131e]/60 font-medium">{modalMode === 'create' ? 'Configure and save your custom AI assistant.' : 'Update your project configuration.'}</DialogDescription>
           </DialogHeader>
-          <div className="grid gap-6 py-4">
-            <div className="grid grid-cols-2 gap-4">
+          <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <Label htmlFor="project-name">Project Name</Label>
-                <Input id="project-name" placeholder="Customer Support Bot" value={projectForm.name} onChange={(e) => setProjectForm(prev => ({ ...prev, name: e.target.value }))} />
+                <Label htmlFor="project-name" className="text-[#0b131e]/70 font-semibold text-sm">Project Name</Label>
+                <Input id="project-name" placeholder="Customer Support Bot" className="h-11 bg-[#eff5fb]/30 border-[#0b131e]/10 rounded-xl" value={projectForm.name} onChange={(e) => setProjectForm(prev => ({ ...prev, name: e.target.value }))} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="base-model">Base Model</Label>
+                <Label htmlFor="base-model" className="text-[#0b131e]/70 font-semibold text-sm">Base Model</Label>
                 <Select value={projectForm.model} onValueChange={(value) => setProjectForm(prev => ({ ...prev, model: value }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent><SelectItem value="qwen-fast">Step Flash (Recommended)</SelectItem><SelectItem value="gpt-oss">GPT-OSS (OpenRouter)</SelectItem><SelectItem value="gpt-5-nano">GPT-5 Nano (Azure)</SelectItem></SelectContent>
+                  <SelectTrigger className="h-11 bg-[#eff5fb]/30 border-[#0b131e]/10 rounded-xl"><SelectValue /></SelectTrigger>
+                  <SelectContent className="bg-white border-[#0b131e]/10 rounded-xl shadow-xl">
+                    <SelectItem value="gpt-oss">GPT-OSS (Fast Model)</SelectItem>
+                    <SelectItem value="gpt-5-nano">GPT-5 Nano (Fast Model)</SelectItem>
+                  </SelectContent>
                 </Select>
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="project-description">Description</Label>
-              <Textarea id="project-description" placeholder="A brief description of what this assistant does." value={projectForm.description} onChange={(e) => setProjectForm(prev => ({ ...prev, description: e.target.value }))} />
+              <Label htmlFor="project-description" className="text-[#0b131e]/70 font-semibold text-sm">Description</Label>
+              <Textarea id="project-description" placeholder="A brief description of what this assistant does." className="bg-[#eff5fb]/30 border-[#0b131e]/10 rounded-xl min-h-[80px]" value={projectForm.description} onChange={(e) => setProjectForm(prev => ({ ...prev, description: e.target.value }))} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="knowledge-base">Knowledge Base</Label>
-              <MultiSelect options={dataSourceOptions} selected={projectForm.documents} onChange={(selected) => setProjectForm(prev => ({ ...prev, documents: selected }))} />
-              <p className="text-xs text-muted-foreground">Select documents to ground the AI's responses.</p>
+              <Label htmlFor="knowledge-base" className="text-[#0b131e]/70 font-semibold text-sm">Knowledge Base</Label>
+              <MultiSelect
+                options={dataSourceOptions}
+                selected={projectForm.documents}
+                onChange={(selected) => setProjectForm(prev => ({ ...prev, documents: selected }))}
+                className="bg-[#eff5fb]/30 border-[#0b131e]/10 rounded-xl"
+              />
+              <p className="text-xs text-[#0b131e]/50 font-medium">Select documents to ground the AI's responses.</p>
             </div>
             <div className="space-y-2">
-              <Label>System Prompt</Label>
-              <Textarea placeholder="Define the AI's personality and instructions..." value={projectForm.systemPrompt} onChange={(e) => setProjectForm(prev => ({ ...prev, systemPrompt: e.target.value }))} className="min-h-[100px]" />
+              <Label className="text-[#0b131e]/70 font-semibold text-sm">System Prompt</Label>
+              <Textarea placeholder="Define the AI's personality and instructions..." value={projectForm.systemPrompt} onChange={(e) => setProjectForm(prev => ({ ...prev, systemPrompt: e.target.value }))} className="bg-[#eff5fb]/30 border-[#0b131e]/10 rounded-xl min-h-[120px]" />
             </div>
-            <div className="space-y-2">
-              <Label>Temperature: {projectForm.temperature}</Label>
-              <Slider value={[projectForm.temperature]} onValueChange={([value]) => setProjectForm(prev => ({ ...prev, temperature: value }))} max={2} min={0} step={0.1} />
+            <div className="space-y-4 pt-2">
+              <div className="flex justify-between items-center">
+                <Label className="text-[#0b131e]/70 font-semibold text-sm">Creativity (Temperature)</Label>
+                <Badge variant="secondary" className="bg-[#2d74d7]/10 text-[#2d74d7] border-none font-bold">{projectForm.temperature}</Badge>
+              </div>
+              <Slider value={[projectForm.temperature]} onValueChange={([value]) => setProjectForm(prev => ({ ...prev, temperature: value }))} max={2} min={0} step={0.1} className="py-4" />
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsModalOpen(false)}>Cancel</Button>
-            <Button onClick={handleFormSubmit} disabled={isLoading}>{isLoading ? 'Saving...' : 'Save Project'}</Button>
+          <DialogFooter className="p-6 bg-[#eff5fb]/30 border-t border-[#0b131e]/5 sm:justify-end gap-3">
+            <Button variant="outline" onClick={() => setIsModalOpen(false)} className="rounded-xl border-[#0b131e]/10 hover:bg-white/50 font-semibold">Cancel</Button>
+            <Button onClick={handleFormSubmit} disabled={isLoading} className="rounded-xl bg-[#2d74d7] hover:bg-[#2d74d7]/90 text-white font-bold h-11 px-8 shadow-lg shadow-blue-500/20">{isLoading ? 'Saving...' : 'Save Project'}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -222,10 +233,26 @@ export function ProjectsView({ triggerNewProject, onNewProjectTriggered }) {
       </Dialog>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card><CardContent className="p-6"><div className="flex items-center justify-between"><div><p className="text-sm font-medium text-muted-foreground">Total Projects</p><p className="text-2xl font-bold">{totalProjects}</p></div><Brain size={24} className="text-primary" weight="duotone" /></div></CardContent></Card>
-        <Card><CardContent className="p-6"><div className="flex items-center justify-between"><div><p className="text-sm font-medium text-muted-foreground">Deployed</p><p className="text-2xl font-bold text-green-600">{deployedProjects}</p></div><Rocket size={24} className="text-green-600" weight="duotone" /></div></CardContent></Card>
-        <Card><CardContent className="p-6"><div className="flex items-center justify-between"><div><p className="text-sm font-medium text-muted-foreground">In Development</p><p className="text-2xl font-bold text-yellow-600">{devProjects}</p></div><Code size={24} className="text-yellow-600" weight="duotone" /></div></CardContent></Card>
-        <Card><CardContent className="p-6"><div className="flex items-center justify-between"><div><p className="text-sm font-medium text-muted-foreground">API Calls Today</p><p className="text-2xl font-bold">{totalApiCalls.toLocaleString()}</p></div><CheckCircle size={24} className="text-primary" weight="duotone" /></div></CardContent></Card>
+        {[
+          { title: "Total Projects", value: totalProjects, icon: Brain, color: "text-primary" },
+          { title: "Deployed", value: deployedProjects, icon: Rocket, color: "text-green-600" },
+          { title: "In Development", value: devProjects, icon: Code, color: "text-yellow-600" },
+          { title: "API Calls Today", value: totalApiCalls.toLocaleString(), icon: CheckCircle, color: "text-primary" }
+        ].map((stat, i) => (
+          <motion.div key={i} whileHover={{ scale: 1.02 }} transition={{ type: "spring", stiffness: 300 }}>
+            <Card className="hover:border-[#2d74d7]/20 transition-colors duration-300">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">{stat.title}</p>
+                    <p className="text-2xl font-bold font-mono text-[#0b131e]">{stat.value}</p>
+                  </div>
+                  <stat.icon size={28} className={stat.color} weight="duotone" />
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
       </div>
 
       {projects.length === 0 ? (
@@ -242,50 +269,64 @@ export function ProjectsView({ triggerNewProject, onNewProjectTriggered }) {
             const statusConfig = getStatusConfig(project.status);
             const StatusIcon = statusConfig.icon;
             return (
-              <motion.div key={project.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: index * 0.05 }}>
-                <Card className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 flex flex-col h-full">
+
+              <motion.div
+                key={project.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                whileHover={{ y: -8, scale: 1.005 }}
+                transition={{ duration: 0.3, delay: index * 0.05 }}
+              >
+                <Card className="group bg-white border-[#0b131e]/10 shadow-sm hover:shadow-2xl hover:shadow-blue-500/10 transition-all duration-300 flex flex-col h-full rounded-2xl overflow-hidden cursor-pointer border-t-4 border-t-transparent hover:border-t-[#2d74d7]">
                   <CardHeader className="pb-4">
                     <div className="flex items-start justify-between">
-                      <div className="space-y-1"><CardTitle className="text-lg">{project.name}</CardTitle><CardDescription className="text-sm">{project.description || 'No description provided'}</CardDescription></div>
+                      <div className="space-y-1">
+                        <CardTitle className="text-xl font-bold text-[#0b131e] group-hover:text-[#2d74d7] transition-colors">{project.name}</CardTitle>
+                        <CardDescription className="text-sm text-[#0b131e]/60 font-medium line-clamp-2">{project.description || 'No description provided'}</CardDescription>
+                      </div>
                     </div>
                   </CardHeader>
-                  <CardContent className="space-y-4 flex-grow flex flex-col">
+                  <CardContent className="space-y-4 flex-grow flex flex-col p-6 pt-0">
                     <div className="flex items-center gap-2">
-                      <Badge variant="outline" className={`${statusConfig.color} border`}><StatusIcon size={12} className="mr-1" />{statusConfig.label}</Badge>
-                      <Badge variant="secondary" className="text-xs">v{project.version}</Badge>
+                      {/* Status Badge */}
+                      <Badge variant="outline" className={`${statusConfig.color} border py-1`}>
+                        <StatusIcon size={12} className="mr-1" />{statusConfig.label}
+                      </Badge>
+                      <Badge variant="secondary" className="text-xs bg-[#eff5fb] text-[#2d74d7]">v{project.version}</Badge>
                     </div>
+                    {/* ... content ... */}
                     <div className="text-sm text-muted-foreground space-y-1">
-                      <p>Model: {project.model}</p>
-                      <p>Temp: {project.temperature}</p>
+                      <p className="flex items-center gap-1"><Sparkle size={14} className="text-[#2d74d7]" /> {project.model}</p>
                     </div>
+
                     {project.documents && project.documents.length > 0 && (
-                      <div className="space-y-2 pt-2 border-t">
-                        <Label className="text-xs">Knowledge Base</Label>
+                      <div className="space-y-2 pt-2 border-t border-[#0b131e]/5">
+                        <Label className="text-xs text-[#0b131e]/40 font-bold uppercase tracking-wider">Knowledge Base</Label>
                         <div className="flex flex-wrap gap-1">
                           {project.documents.map(doc => (
-                            <Badge key={doc._id || doc.id} variant="outline" className="flex items-center gap-1">
-                              <Folder size={12} />{doc.fileName}
+                            <Badge key={doc._id || doc.id} variant="outline" className="flex items-center gap-1 bg-white hover:bg-[#eff5fb] transition-colors">
+                              <Folder size={12} className="text-[#2d74d7]" />{doc.fileName}
                             </Badge>
                           ))}
                         </div>
                       </div>
                     )}
-                    <div className="flex gap-2 pt-4 mt-auto">
-                      <Button variant="outline" size="sm" className="flex-1 gap-1" onClick={() => handleOpenEditDialog(project)}>
+                    <div className="flex gap-2 pt-4 mt-auto transition-opacity duration-200">
+                      <Button variant="outline" size="sm" className="flex-1 gap-1 border-[#0b131e]/10 hover:border-[#2d74d7] hover:text-[#2d74d7]" onClick={(e) => { e.stopPropagation(); handleOpenEditDialog(project); }}>
                         <PencilSimple size={14} />Edit
                       </Button>
 
                       {project.status === 'deployed' ? (
-                        <Button variant="secondary" size="sm" className="flex-1 gap-1" onClick={() => handleViewAPI(project)}>
-                          <LinkIcon size={14} />View API Keys
+                        <Button variant="secondary" size="sm" className="flex-1 gap-1 text-[#2d74d7] bg-[#eff5fb] hover:bg-[#2d74d7]/10" onClick={(e) => { e.stopPropagation(); handleViewAPI(project); }}>
+                          <LinkIcon size={14} />API Keys
                         </Button>
                       ) : (
-                        <Button size="sm" className="flex-1 gap-1 bg-green-600 hover:bg-green-700" onClick={() => handleOpenDeployDialog(project)}>
+                        <Button size="sm" className="flex-1 gap-1 bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-500/20" onClick={(e) => { e.stopPropagation(); handleOpenDeployDialog(project); }}>
                           <Rocket size={14} />Deploy
                         </Button>
                       )}
 
-                      <Button variant="ghost" size="sm" onClick={() => handleDeleteProject(project.id)} className="text-destructive hover:text-destructive px-2">
+                      <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleDeleteProject(project.id); }} className="text-destructive hover:bg-destructive/10 px-2 rounded-lg">
                         <Trash size={14} />
                       </Button>
                     </div>
@@ -293,6 +334,7 @@ export function ProjectsView({ triggerNewProject, onNewProjectTriggered }) {
                 </Card>
               </motion.div>
             );
+
           })}
         </div>
       )}

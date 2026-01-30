@@ -42,14 +42,14 @@ export function AnalyticsView() {
     value: project.calls, // recharts Pie component uses 'value'
     color: PIE_COLORS[index % PIE_COLORS.length]
   }));
-  
+
   // Format data for Bar and Line charts, which now share the same source
   const timeSeriesData = data.callsOverTime;
 
   // Mock data for metrics that we don't track yet (e.g., active users)
   const metrics = [
     { title: 'Total API Calls', value: data.summary.totalApiCalls.toLocaleString(), icon: ChartBar, color: 'text-blue-600' },
-    { title: 'Response Time', value: `${data.summary.avgResponseTime.toLocaleString()}ms`, icon: Lightning, color: 'text-green-600' },
+    { title: 'Response Time', value: `${(data.summary.avgResponseTime / 1000).toFixed(2)}s`, icon: Lightning, color: 'text-green-600' },
     { title: 'Active Users', value: '1', change: '', trend: 'up', icon: Users, color: 'text-purple-600' }, // Mocked
     { title: 'Token Usage', value: data.summary.totalTokensUsed.toLocaleString(), icon: Cpu, color: 'text-orange-600' }
   ];
@@ -73,13 +73,13 @@ export function AnalyticsView() {
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {metrics.map((metric, index) => (
-          <motion.div key={metric.title} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: index * 0.1 }}>
-            <Card>
+          <motion.div key={metric.title} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} whileHover={{ y: -5 }} transition={{ duration: 0.3, delay: index * 0.1 }}>
+            <Card className="hover:border-blue-500/30 transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/5">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">{metric.title}</p>
-                    <p className="text-2xl font-bold">{metric.value}</p>
+                    <p className="text-2xl font-bold text-foreground">{metric.value}</p>
                   </div>
                   <metric.icon size={24} className={metric.color} weight="duotone" />
                 </div>

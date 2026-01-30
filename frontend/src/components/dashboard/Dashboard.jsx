@@ -15,7 +15,8 @@ import {
   MagnifyingGlass,
   ChatCircleIcon,
   DatabaseIcon,
-  List
+  List,
+  BookOpen
 } from '@phosphor-icons/react';
 import { Input } from '@/components/ui/input';
 import { motion } from 'framer-motion';
@@ -35,7 +36,7 @@ export function Dashboard({ user, onLogout, children }) {
   const [triggerNewProject, setTriggerNewProject] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
-  
+
   const location = useLocation(); // Hook to get the current URL path
   const navigate = useNavigate(); // Hook to programmatically navigate
 
@@ -174,17 +175,18 @@ export function Dashboard({ user, onLogout, children }) {
     { id: 'playground', label: 'Playground', icon: ChatCircleIcon, path: 'playground' },
     { id: 'data', label: 'Knowledge Base', icon: DatabaseIcon, path: 'data' },
     { id: 'analytics', label: 'Analytics', icon: ChartBarIcon, path: 'analytics' },
-    { id: 'settings', label: 'Settings', icon: GearIcon, path: 'settings' }
+    { id: 'settings', label: 'Settings', icon: GearIcon, path: 'settings' },
+    { id: 'docs', label: 'Documentation', icon: BookOpen, path: 'documentation' }
   ];
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
+    <div className="min-h-screen bg-[#eff5fb] text-[#0b131e]">
+      <header className="border-b border-[#0b131e]/10 bg-white/80 backdrop-blur-md sticky top-0 z-50">
         <div className="flex h-16 items-center px-6">
           <div className="flex items-center gap-3">
-            <h1 className="font-semibold text-lg bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text ">GPTStudio</h1>
+            <h1 className="font-extrabold text-2xl tracking-tighter text-[#0b131e]">GPTStudio</h1>
           </div>
-          
+
           <div className="flex-1 flex justify-center px-8">
             <div className="w-full max-w-lg relative">
               <div className="relative">
@@ -207,7 +209,7 @@ export function Dashboard({ user, onLogout, children }) {
                   }}
                 />
               </div>
-              
+
               {showSearchResults && (
                 <Card className="absolute top-full left-0 right-0 mt-2 z-50 border">
                   <CardContent className="p-2">
@@ -256,7 +258,7 @@ export function Dashboard({ user, onLogout, children }) {
               )}
             </div>
           </div>
-          
+
           <div className="flex items-center gap-3">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -318,7 +320,7 @@ export function Dashboard({ user, onLogout, children }) {
                 )}
               </DropdownMenuContent>
             </DropdownMenu>
-            
+
             <div className="flex items-center gap-3 border-l pl-4 ml-2">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -365,32 +367,38 @@ export function Dashboard({ user, onLogout, children }) {
             <div className="space-y-1">
               {navigationItems.map((item) => {
                 const Icon = item.icon;
-                const isActive = location.pathname === item.path; // Determine active state from URL
+                const isActive = location.pathname.includes(item.path); // Improved active state matching
                 return (
                   <motion.div
                     key={item.id}
-                    whileHover={{ x: sidebarCollapsed ? 0 : 2, scale: sidebarCollapsed ? 1.05 : 1 }}
+                    whileHover={{ x: sidebarCollapsed ? 0 : 4, scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
+                    className="relative"
                   >
                     <Button
                       onClick={() => navigate(`/app/${item.path}`)}
-                      variant={isActive ? "secondary" : "ghost"}
-                      className={`w-full h-11 ${sidebarCollapsed ? 'justify-center px-0' : 'justify-start gap-3 px-3'} ${isActive ? 'bg-primary/10 text-primary border border-primary/20 shadow-sm' : 'hover:bg-accent/50'} transition-all duration-200 relative group`}
+                      variant="ghost"
+                      className={`w-full h-11 ${sidebarCollapsed ? 'justify-center px-0' : 'justify-start gap-3 px-3'} 
+                        ${isActive
+                          ? 'bg-[#2d74d7]/15 text-[#2d74d7] border border-[#2d74d7]/20 shadow-sm font-semibold'
+                          : 'hover:bg-[#2d74d7]/10 hover:text-[#2d74d7] text-[#0b131e]/70 hover:border-[#2d74d7]/10 border border-transparent'
+                        } 
+                        transition-all duration-200 relative group rounded-xl`}
                       title={sidebarCollapsed ? item.label : undefined}
                     >
                       <div className={`flex items-center justify-center ${sidebarCollapsed ? 'w-5 h-5' : 'w-5 h-5 flex-shrink-0'}`}>
-                        <Icon size={20} weight={isActive ? "fill" : "regular"} />
+                        <Icon size={20} weight={isActive ? "fill" : "regular"} className={isActive ? "text-[#2d74d7]" : "group-hover:text-[#2d74d7] transition-colors"} />
                       </div>
                       <motion.span
                         initial={false}
                         animate={{ opacity: sidebarCollapsed ? 0 : 1, width: sidebarCollapsed ? 0 : "auto" }}
                         transition={{ duration: 0.2 }}
-                        className="overflow-hidden whitespace-nowrap font-medium"
+                        className="overflow-hidden whitespace-nowrap"
                       >
                         {!sidebarCollapsed && item.label}
                       </motion.span>
                       {sidebarCollapsed && (
-                        <div className="absolute left-full ml-3 px-3 py-2 bg-card border border-border rounded-lg text-sm whitespace-nowrap shadow-lg z-50 pointer-events-none backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="absolute left-full ml-3 px-3 py-2 bg-[#0b131e] text-white rounded-lg text-xs font-medium whitespace-nowrap shadow-xl z-50 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity translate-x-2 group-hover:translate-x-0 duration-200">
                           {item.label}
                         </div>
                       )}

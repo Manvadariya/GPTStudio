@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { AuthScreen } from './components/auth/AuthScreen';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 import './index.css';
 
@@ -15,6 +16,7 @@ import { AnalyticsView } from './components/dashboard/AnalyticsView';
 import { SettingsView } from './components/dashboard/SettingsView';
 import { PlaygroundView } from './components/dashboard/PlaygroundView';
 import { DataView } from './components/dashboard/DataView';
+import { DocumentationView } from './components/dashboard/DocumentationView';
 
 
 const router = createBrowserRouter([
@@ -32,6 +34,7 @@ const router = createBrowserRouter([
       { path: "data", element: <DataView /> },
       { path: "analytics", element: <AnalyticsView /> },
       { path: "settings", element: <SettingsView /> },
+      { path: "documentation", element: <DocumentationView /> },
       // Team and Billing are already removed, which is correct
     ]
   },
@@ -44,8 +47,10 @@ const router = createBrowserRouter([
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <AppProvider>
-      <RouterProvider router={router} />
-    </AppProvider>
+    <ErrorBoundary>
+      <AppProvider>
+        <RouterProvider router={router} />
+      </AppProvider>
+    </ErrorBoundary>
   </React.StrictMode>
 );

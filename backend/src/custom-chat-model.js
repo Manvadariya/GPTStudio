@@ -10,8 +10,8 @@ const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 const modelCache = {};
 
 // Factory function to create the appropriate chat model based on provider
-// Default to fast Qwen model for RAG queries
-export function createChatModel(provider = 'qwen-fast') {
+// Default to fast model for RAG queries
+export function createChatModel(provider = 'fast-model') {
   if (!modelCache[provider]) {
     modelCache[provider] = new UnifiedChatModel(provider);
   }
@@ -19,17 +19,17 @@ export function createChatModel(provider = 'qwen-fast') {
 }
 
 export class UnifiedChatModel extends SimpleChatModel {
-  constructor(provider = 'qwen-fast') {
+  constructor(provider = 'fast-model') {
     super({});
     this.provider = provider;
 
     const { OPENROUTER_AI_ENDPOINT, OPENROUTER_API_KEY, OPENROUTER_CHAT_MODEL_NAME } = process.env;
     const { AZURE_AI_ENDPOINT, AZURE_AI_API_KEY, CHAT_MODEL_NAME } = process.env;
 
-    if (provider === 'qwen-fast') {
-      // Fast Qwen model via OpenRouter (default for RAG)
+    if (provider === 'fast-model' || provider === 'qwen-fast') {
+      // Fast model via OpenRouter (default for RAG)
       if (!OPENROUTER_AI_ENDPOINT || !OPENROUTER_API_KEY) {
-        throw new Error("Missing OpenRouter environment variables for qwen-fast.");
+        throw new Error("Missing OpenRouter environment variables.");
       }
       this.modelName = process.env.FAST_MODEL_NAME || 'stepfun/step-3.5-flash:free';
       this.client = new OpenAI({
@@ -37,7 +37,7 @@ export class UnifiedChatModel extends SimpleChatModel {
         apiKey: OPENROUTER_API_KEY,
         timeout: 15 * 1000, // 15 seconds for fast model
       });
-      console.log(`Initialized Qwen Fast model: ${this.modelName}`);
+      console.log(`Initialized Fast model: ${this.modelName}`);
     } else if (provider === 'gpt-oss') {
       // OpenRouter with configured model (fallback for complex reasoning)
       if (!OPENROUTER_AI_ENDPOINT || !OPENROUTER_API_KEY || !OPENROUTER_CHAT_MODEL_NAME) {

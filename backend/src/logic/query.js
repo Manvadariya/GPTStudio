@@ -175,7 +175,7 @@ export async function performQuery({ userId, question, documentIds, systemPrompt
 
   const { context, docCount } = await prepareContext({ userId, question, documentIds, intent });
   const chatModel = createChatModel(modelProvider);
-  const modelUsed = chatModel.getProvider();
+  const modelUsed = chatModel.getModelName();
 
   console.log(`📚 Retrieved ${docCount} chunks for ${intent} query`);
   console.log(`🧠 Generating answer using ${modelUsed} model...`);
@@ -193,7 +193,7 @@ export async function* performStreamingQuery({ userId, question, documentIds, sy
 
   const { context, docCount } = await prepareContext({ userId, question, documentIds, intent });
   const chatModel = createChatModel(modelProvider);
-  const modelUsed = chatModel.getProvider();
+  const modelUsed = chatModel.getModelName();
 
   console.log(`📚 Retrieved ${docCount} chunks for ${intent} query`);
   console.log(`🌊 Streaming answer using ${modelUsed} model...`);
