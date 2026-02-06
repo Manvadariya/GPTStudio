@@ -67,7 +67,16 @@ app.use('/api/keys', apiKeyRoutes);
 app.use('/api/data', dataRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/v1/chat', publicChatRoutes);
-app.use('/api/analytics', analyticsRoutes); // <-- ADD THIS
+app.use('/api/analytics', analyticsRoutes);
+
+// --- Serve Static Frontend (Production) ---
+const frontendDistPath = path.join(__dirname, '../../frontend/dist');
+app.use(express.static(frontendDistPath));
+
+// Handle React Client-Side Routing
+app.get('*', (req, res) => {
+  res.sendFile(path.join(frontendDistPath, 'index.html'));
+});
 
 // --- Start the Server ---
 app.listen(PORT, () => console.log(`🚀 Server is listening on http://localhost:${PORT}`));
