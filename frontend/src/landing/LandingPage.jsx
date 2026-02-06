@@ -256,7 +256,7 @@ const HeroSection = () => {
                 </div>
                 <div className="mt-24 mx-auto relative z-10 max-w-5xl">
                     <img
-                        src="public/dashboard.png"
+                        src="/dashboard.png"
                         className="w-full shadow-2xl rounded-lg border border-[#0b131e]/10"
                         alt="GPTStudio Dashboard preview"
                     />
