@@ -509,7 +509,7 @@ const TimelineSection = () => {
                                 <p className="mb-8 text-sm font-normal text-[#0b131e] md:text-base">
                                     Instantly teach your chatbot by uploading your existing documentation, PDFs, or website content. Our platform processes your data to create a comprehensive knowledge base.
                                 </p>
-                                <img src="public/upload.png" alt="Document Upload UI" width="500" height="500" className="w-full rounded-lg object-cover shadow-md" />
+                                <img src="/upload.png" alt="Document Upload UI" width="500" height="500" className="w-full rounded-lg object-cover shadow-md" />
                             </div>
                         </div>
                     </div>
@@ -532,7 +532,7 @@ const TimelineSection = () => {
                                 <p className="mb-8 text-sm font-normal text-[#0b131e] md:text-base">
                                     Interact with your chatbot in our real-time playground. Refine its responses, test different scenarios, and ensure it meets your standards before going live.
                                 </p>
-                                <img src="public/playground.png" alt="Chatbot testing playground" width="500" height="500" className="w-full rounded-lg object-cover shadow-md" />
+                                <img src="/playground.png" alt="Chatbot testing playground" width="500" height="500" className="w-full rounded-lg object-cover shadow-md" />
                             </div>
                         </div>
                     </div>
@@ -555,7 +555,7 @@ const TimelineSection = () => {
                                 <p className="mb-8 text-sm font-normal text-[#0b131e] md:text-base">
                                     Integrate your fully-trained chatbot into any application using our simple and powerful REST API. Copy and paste a few lines of code to deploy it anywhere.
                                 </p>
-                                <img src="public/api.png" alt="API Integration" width="500" height="500" className="w-full rounded-lg object-cover shadow-md" />
+                                <img src="/api.png" alt="API Integration" width="500" height="500" className="w-full rounded-lg object-cover shadow-md" />
                             </div>
                         </div>
                     </div>
@@ -578,7 +578,7 @@ const TimelineSection = () => {
                                 <p className="mb-8 text-sm font-normal text-[#0b131e] md:text-base">
                                     Track your chatbot's performance through our analytics dashboard. Gain insights into user interactions, popular queries, and overall effectiveness to continuously improve.
                                 </p>
-                                <img src="public/dashboard.png" alt="Analytics Dashboard" width="500" height="500" className="w-full rounded-lg object-cover shadow-md" />
+                                <img src="/dashboard.png" alt="Analytics Dashboard" width="500" height="500" className="w-full rounded-lg object-cover shadow-md" />
                             </div>
                         </div>
                     </div>

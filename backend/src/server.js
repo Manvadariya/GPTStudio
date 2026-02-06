@@ -29,7 +29,7 @@ const PORT = process.env.PORT || 3001;
 
 // --- Middleware Setup ---
 // Allow requests from your frontend development server
-app.use(cors({ origin: 'http://localhost:5173' }));
+app.use(cors()); // Allow all origins for production deployment
 app.use(express.json()); // To parse JSON request bodies
 
 // --- Database Connections ---
