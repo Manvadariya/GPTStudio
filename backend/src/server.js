@@ -70,12 +70,28 @@ app.use('/api/v1/chat', publicChatRoutes);
 app.use('/api/analytics', analyticsRoutes);
 
 // --- Serve Static Frontend (Production) ---
-const frontendDistPath = path.join(__dirname, '../../frontend/dist');
+const frontendDistPath = path.resolve(__dirname, '../../frontend/dist');
+console.log(`📂 Static files directory: ${frontendDistPath}`);
+
+import fs from 'fs';
+if (fs.existsSync(frontendDistPath)) {
+  console.log('✅ Frontend dist directory found.');
+  const files = fs.readdirSync(frontendDistPath);
+  console.log(`📄 Found ${files.length} files in dist: ${files.slice(0, 5).join(', ')}...`);
+} else {
+  console.error('❌ Frontend dist directory NOT found!');
+}
+
 app.use(express.static(frontendDistPath));
 
 // Handle React Client-Side Routing
 app.get('*', (req, res) => {
-  res.sendFile(path.join(frontendDistPath, 'index.html'));
+  const indexPath = path.join(frontendDistPath, 'index.html');
+  if (fs.existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    res.status(404).send('Frontend build not found. Please build the frontend first.');
+  }
 });
 
 // --- Start the Server ---

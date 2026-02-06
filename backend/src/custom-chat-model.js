@@ -138,8 +138,8 @@ export class UnifiedChatModel extends SimpleChatModel {
 
       } catch (error) {
         attempt++;
-        if (error.code === 'ETIMEDOUT' || error.name === 'AbortError' || error.status >= 500) {
-          console.warn(`Attempt ${attempt} failed: ${error.message}. Retrying...`);
+        if (error.code === 'ETIMEDOUT' || error.name === 'AbortError' || error.status >= 500 || error.status === 429) {
+          console.warn(`Attempt ${attempt} failed (Status: ${error.status}): ${error.message}. Retrying in ${currentDelay}ms...`);
           if (attempt >= maxRetries) {
             throw error;
           }
