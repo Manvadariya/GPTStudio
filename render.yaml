@@ -20,11 +20,17 @@ services:
         sync: false
       - key: OPENROUTER_API_KEY
         sync: false
-      - key: AZURE_OPENAI_API_KEY
+      - key: OPENROUTER_AI_ENDPOINT
         sync: false
-      - key: AZURE_OPENAI_ENDPOINT
+      - key: OPENROUTER_CHAT_MODEL_NAME
         sync: false
-      - key: AZURE_DEPLOYMENT_NAME
+      - key: AZURE_AI_API_KEY
         sync: false
-      - key: OPENAI_API_KEY
+      - key: AZURE_AI_ENDPOINT
+        sync: false
+      - key: EMBEDDING_MODEL_NAME
+        sync: false
+      - key: CHAT_MODEL_NAME
+        sync: false
+      - key: FAST_MODEL_NAME
         sync: false
