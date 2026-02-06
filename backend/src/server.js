@@ -59,7 +59,7 @@ Promise.all([
 });
 
 // --- API Routes ---
-app.get('/', (req, res) => res.send('AI Platform Backend is running!'));
+
 app.use('/api/auth', authRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/users', userRoutes);
